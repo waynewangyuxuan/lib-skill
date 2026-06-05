@@ -1,0 +1,14 @@
+{
+  "name": "lib-skill",
+  "version": "2.0.0",
+  "description": "MyLibrary vault entity-first skill system — settle, entity, search, review, compile, export, manual",
+  "skills": [
+    "lib-settle",
+    "lib-entity",
+    "lib-search",
+    "lib-review",
+    "lib-compile",
+    "lib-export",
+    "lib-manual"
+  ]
+}
