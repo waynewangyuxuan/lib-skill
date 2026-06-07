@@ -22,11 +22,15 @@ Forward (stream → entity storage) + reverse (entity storage → stream). After
 
 ## Phase 2: Reverse Settle
 
-Scan entity storage folders for new content not in today's work log, write AI summaries back.
+Find work that happened on {date} but isn't in the work log. Two sources: vault diff and external resources.
 
-1. **Scan entities**: For active workstream entities, check their storage folders for files created/modified on {date}. Also check Access for repo commits.
-2. **Filter**: Skip entities already mentioned in work log.
-3. **Write to work log**: `## [[{entity}]] #ai-generated` with summary + backlinks.
+1. **Vault diff**: `git diff` between day-start and day-end snapshots. Group changed files by entity (file path → entity storage folder or entity page). Ignore vault infra (`.obsidian/`, `.claude/`, `_folder.compiled.yaml`, etc.).
+2. **External repos**: For active entities with repo paths in Access, `git diff` or `git log --since/--until` on those repos.
+3. **Work log links**: Probe links mentioned in the work log (URLs, repo refs) for context that enriches the log entry.
+4. **Filter**: Skip entities already covered in the work log (mentioned by name or wikilink).
+5. **Write to work log**: `## [[{entity}]] #ai-generated` with summary of unreported changes.
+
+Resource access is currently git + HTTP. Future: per-resource-type accessors (feishu CLI, etc.) configurable via entity Access.
 
 ## After Both Phases: Invoke lib-entity
 
