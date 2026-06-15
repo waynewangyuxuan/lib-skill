@@ -1,9 +1,18 @@
+---
+name: lib-settle
+description: >
+  Use for MyLibrary bidirectional settle workflows: distribute work-log stream
+  content into entity storage, reverse-settle unlogged vault/repo changes, and
+  invoke lib-entity afterward. Triggers include "settle today", "settle all
+  unprocessed", "settle forward", and "settle reverse".
+---
+
 # lib-settle — Bidirectional Stream ↔ Entity Distribution
 
 Forward (stream → entity storage) + reverse (entity storage → stream). After settle, invoke lib-entity for entity extraction.
 
 **Vault**: `~/MyLibrary`
-**Private stdlib**: `stdlib/settle-engine.md` — entity-first matching + consumer execution rules. Read before executing.
+**Shared stdlib**: `../_stdlib/consumer-interface.md` and `../_stdlib/skill-conventions.md` — entity-first matching + consumer execution rules. Read before executing.
 
 ## Triggers
 

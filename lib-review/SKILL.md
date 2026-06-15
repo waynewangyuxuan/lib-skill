@@ -1,3 +1,11 @@
+---
+name: lib-review
+description: >
+  Use for MyLibrary end-of-day and end-of-week reviews: "review today",
+  "review week", "lib-review eod", or "lib-review eow". Generates daily or
+  weekly review files and audits entity graph health.
+---
+
 # lib-review — EOD/EOW Review Generator
 
 Produces structured review files from work logs. Two commands: `eod` (daily) and `eow` (weekly). EOW includes entity graph audit (运维层 + 认知层).

@@ -1,0 +1,32 @@
+{
+  "name": "lib-skill",
+  "version": "2.0.0",
+  "description": "MyLibrary vault entity-first skill system for settle, entity, search, review, compile, export, and manual workflows.",
+  "author": {
+    "name": "Wayne Wang"
+  },
+  "keywords": [
+    "mylibrary",
+    "vault",
+    "entities",
+    "obsidian"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "lib-skill",
+    "shortDescription": "Entity-first workflows for the MyLibrary vault.",
+    "longDescription": "Skills for settling work logs, managing entity pages, searching vault context, generating reviews, compiling folder config, exporting sessions, and reading the MyLibrary vault manual.",
+    "developerName": "Wayne Wang",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Use lib-manual to orient me in MyLibrary.",
+      "Settle today's MyLibrary work log.",
+      "Search my vault for context on a topic."
+    ],
+    "brandColor": "#2563EB"
+  }
+}

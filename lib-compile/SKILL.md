@@ -1,9 +1,17 @@
+---
+name: lib-compile
+description: >
+  Use for MyLibrary folder intent realization: compile _folder.md into
+  _folder.compiled.yaml, create folder dashboards, initialize folders, or run
+  "compile", "compile all", "init", "编译", or "初始化" workflows.
+---
+
 # lib-compile — Folder Intent Realizer
 
 Reads `_folder.md` and makes the folder match its description: compiled config, dashboard file, subfolder structure. Storage-layer only — identity lives in entity pages.
 
 **Vault**: `~/MyLibrary`
-**Shared stdlib**: `~/.claude/skills/_stdlib/yaml-schema.md` — config schema reference.
+**Shared stdlib**: `../_stdlib/yaml-schema.md` (or installed as `_stdlib/yaml-schema.md`) — config schema reference.
 
 ## Triggers
 

@@ -1,3 +1,12 @@
+---
+name: lib-entity
+description: >
+  Use for MyLibrary entity extraction and management: resolve, create, update,
+  tag, promote, and source-check entities in ~/MyLibrary/_entities. Also use
+  when asked to extract entities, check sources, or after settle/review needs
+  entity graph updates.
+---
+
 # lib-entity — Entity Extraction & Management
 
 Extract, resolve, create, update entities, and check sources. A standalone intelligence that can be invoked by settle, review, or directly.
