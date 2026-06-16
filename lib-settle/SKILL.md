@@ -25,7 +25,8 @@ Forward (stream → entity storage) + reverse (entity storage → stream). After
 1. **Resolve work log**: Map date to `工作记录/{Month}/{YYYY-M-D}.md`. 4am day boundary: before 4am = yesterday.
 2. **Parse sections**: Split by `## ` headings. Skip preamble and `## Settle Log`. No headings → stop.
 3. **For each section**: Follow settle-engine.md — entity resolution → find storage folder → resolve consumer → execute → collect backlink.
-4. **Write consolidated settle log**: Append to `## Settle Log #ai-generated` at bottom of work log. One `→ 已沉淀到 [[entity-name]]` per settled section. Don't duplicate existing entries.
+4. **Nested entity extraction**: Still scan the full section body for `###`/deeper headings, inline links, repo/paper URLs, and explicit relevance language. These nested items do **not** become separate settle targets, but they can become/promote entities via lib-entity. Example: `### Vibe-Trading` plus a GitHub URL and "highly related" language should create/link `[[vibe-trading]]`, even though the parent `##` section settles to `[[moonbow-intelligence]]`.
+5. **Write consolidated settle log**: Append to `## Settle Log #ai-generated` at bottom of work log. One `→ 已沉淀到 [[entity-name]]` per settled section. Don't duplicate existing entries.
 
 **Then proceed to Phase 2.**
 
@@ -44,6 +45,7 @@ Resource access is currently git + HTTP. Future: per-resource-type accessors (fe
 ## After Both Phases: Invoke lib-entity
 
 After settle completes, invoke `lib-entity` on today's work log to extract and update entities. This is a separate intelligence — see lib-entity SKILL.md.
+When invoking lib-entity, pass the whole work log/settled sections, not only top-level headings, so nested headings and externally linked artifacts are eligible for entity promotion.
 
 ## Constraints
 

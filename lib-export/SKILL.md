@@ -32,20 +32,33 @@ Steps are ordered and gated. Step 0 and Step 3 are **hard gates** — do not ski
 
 ### Step 3 — Placement & heading — HARD GATE
 **Every new `## heading` MUST be a `[[wikilink]]`. A free-text `## heading` is forbidden.**
+**Prefer existing structure over new headings.** Export should place content where it belongs inside the current work-log hierarchy, not manufacture top-level sections for convenience.
 
 Decide placement per section of content:
-1. 已有匹配的 `## [[entity]]` section → append 在下面。
-2. 没有,但内容**实质上是关于某个 entity** → resolve 主体 entity:
+1. 已有匹配的 `## [[entity]]` section → write inside that section.
+   - First look for a matching existing `###`/deeper subsection under that `##` (by entity name, topic, task, meeting, artifact, or obvious semantic match).
+   - If a matching subsection exists, append there.
+   - If no matching subsection exists but the content is a small update, append as a bold lead / bullet under the parent `##`, not a new heading.
+   - Create a new `###` only when it names a genuinely stable subtopic/artifact under the parent entity and improves future scanning. `###` is local organization, not entity birth by default.
+2. 没有匹配 `##`,但内容**实质上是关于某个 entity** → resolve 主体 entity:
    - `grep _entities/` 命中(名字或 alias) → 复用 `## [[that-entity]]`。
    - 没命中,但这东西值得独立成 entity → **直接 mint 新的 `## [[new-entity]]`**。写一个指向尚不存在页面的 wikilink 是合法的——这正是 entity 诞生的方式(unresolved link)。命名用 kebab-case,选一个稳定的 canonical name。
 3. 内容少 / 没有清晰的主体 entity → 不开新 heading,直接在已有 section 下插几行 inline。
 
 判断"挂已有 vs mint 新":内容是不是反复出现、值得日后被检索的一个独立 thing?是 → mint。只是某 entity 的一条进展 → 挂到那个 entity 下。拿不准 → 挂已有 / inline(宁可不爆炸)。
 
+Nested placement examples:
+- If `## [[Moonbow-Intelligence]]` already contains `### [[Book-Skill-Distillation]]`, a new book2skill update goes under that `###`, not a new top-level `## [[Book-Skill-Distillation]]`.
+- If `## [[MyLibrary]]` exists and the update is one workflow question, append under that parent with a bold lead; don't create `## [[MyLibrary]] #AI总结` unless there is no existing MyLibrary section.
+- If a nested update introduces a new stable artifact with a repo/paper URL, link the nested name (`### [[vibe-trading|Vibe-Trading]]`) but keep it inside the parent `##` unless the whole export is about that artifact.
+
 ### Step 4 — Write
 直接 edit 工作记录。**只 append/insert,绝不 overwrite Wayne 已有内容。**
 - AI 生成的 heading 打 `#AI总结` tag。
 - 描述性小标题降级成 **bold lead 行**,不要占用 `##`(那是 entity 的位置)。
+- Do not duplicate an existing entity section just to add AI-generated content. If a matching `## [[entity]]` exists, insert there.
+- If adding to an existing `###`, keep the same heading and append a clearly marked paragraph or bullet block (`**Export 补充:** #AI总结`), rather than creating another same-name `###`.
+- New `##` is last resort: only when no appropriate parent entity section exists in the target work log.
 
 ### Step 5 — Report new entities（不建页）
 列出本次写下的、但 `_entities/` 里**还不存在页面**的 `## [[entity]]` headings。
@@ -77,6 +90,8 @@ Decide placement per section of content:
 ## Red Flags — STOP
 
 - 准备写一个**不是 `[[wikilink]]`** 的 `## heading` → STOP。resolve 成 entity、mint 新 entity wikilink,或降级 inline。自由文本 `##` 永不允许。
+- 准备新开 `## [[entity]]` 但目标文件里已经有同一个 entity 的 `##` → STOP。append/insert 到已有 section。
+- 准备新开 `## [[child-entity]]`，但它明显属于当前已有 parent `##` 下的 `###`/subtopic → STOP。放到 parent section 里的现有/新 `###`。
 - **没跑 `date` 就用日历日期** → STOP。先 Step 0 算 4am 边界。
 - 凌晨(hour < 4)却把内容写进了"今天"日历日期的文件 → 错文件,应是前一天。
 - 想顺手"帮忙"创建 entity 页面 / 调 lib-entity → STOP。export 只写引用,建页是 settle/lib-entity 的事。

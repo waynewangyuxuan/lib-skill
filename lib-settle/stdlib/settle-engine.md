@@ -4,6 +4,8 @@
 
 For each `## heading`, find target entity. Stop at first match.
 
+`##` headings are the **settle consumption boundary**. Deeper headings (`###`, `####`) are nested content under the current settle target; do not create separate settle log entries for them. However, nested headings are still entity candidates for lib-entity extraction, especially when paired with a GitHub/paper/service URL or explicit relevance language.
+
 **Priority 1 — Wikilink**: Extract `[[target]]` from heading → find matching entity page in `_entities/`. File name match (case-insensitive).
 
 **Priority 2 — Entity aliases**: Check heading text against `aliases:` in entity page frontmatter (case-insensitive substring). Entity file name is implicit alias. Multiple matches → prefer longest alias.
@@ -47,3 +49,13 @@ Read `## Settle Consumer: {name}` in storage folder's `_folder.md`. Natural lang
 - Primary: `## Settle Log` already has `→ 已沉淀到` matching this section's entity
 - Legacy: section body has inline `→ 已沉淀到`
 - Behavior: skip entirely, no re-copy
+
+## Part 4: Nested Entity Promotion
+
+After consumer execution, scan the full settled section body for nested entity candidates:
+
+- Heading candidates: `### Name` / `#### Name`
+- Link candidates: `[name](https://github.com/...)`, paper URLs, service URLs, local repo paths
+- Relevance signals: "高度相关", "重要参考", "prior art", "similar to", "inspired by", "Frederick's question", repeated mention, or use as a style/reference source
+
+If a nested candidate is unresolved and has both a heading/name and an external identifier (repo, paper, service URL), create an entity page through lib-entity and convert the nested heading or first mention to a wikilink. Keep the parent section's settle backlink unchanged.
