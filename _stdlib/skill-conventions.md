@@ -61,6 +61,11 @@ When NOT to orchestrate: trivial work (read one file, write one line) → just d
 
 - **Vault 内文件** → `[[wikilink]]`。Entity pages, spec docs, 工作记录, 任何在 ~/MyLibrary/ 下的 .md。Obsidian 原生解析，backlink 自动关联。
 - **Vault 外资源** → `[name](url/path)`。Web URL, local file outside vault, external repo link。点击直达。
+- **Always materialize — bare text = information loss.** 凡提到的东西都带链接，写 log / spec / note / entity 时一律执行：
+  - commit / PR → 完整 GitHub URL（不留 bare `@hash`）
+  - research / 外部来源 → 原始 URL（provenance，可回溯）
+  - 顺带提到的相关 entity（哪怕只一句带过）→ `[[wikilink]]` backlink，让它出现在对方的 backlinks 面板
+  这是 provenance 原则（见 Orchestration → 读侧）从 entity 页延伸到所有书写：留住来源、连上关系。
 
 Settle 和 entity extraction 靠这个区分内部引用 vs 外部资源。
 
