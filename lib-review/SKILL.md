@@ -37,6 +37,8 @@ Produces structured review files from work logs. Two commands: `eod` (daily) and
 
 **Input**: optional `{week}` (default: current ISO week)
 
+The graph audit scans all `_entities/*.md` + this week's logs — a wide read. **Fan out** the scan (map-reduce distillation per `_stdlib/skill-conventions.md` Orchestration). Promotion candidates use the same **attach + canonical-name dedup** guard as lib-entity (this command and lib-entity Nested Heading Promotion share one rule).
+
 1. Resolve week date range (Mon–Sun)
 2. Read daily reviews from `_reviews/review-*.md` within this week
 3. **Entity graph audit — 运维层 (every week)**:
@@ -46,7 +48,7 @@ Produces structured review files from work logs. Two commands: `eod` (daily) and
    - Orphans: entities with zero Relations
    - Summary quality: entities with >5 new Context entries since last Summary rewrite
 4. **Entity graph audit — 认知层 (biweekly: even ISO week, or on demand)** — recurrence-promotion:
-   Detect **implicit entities** — things that ARE entities but have no page, because they only ever appear as modifiers/relations *inside* other entities. This is the systematic blind spot from the failure log (`图书馆操作手册/notes/2026-06-12-entity-layer-failure-patterns.md` B6): token-driven extraction + intake explosion control never mint these.
+   Detect **implicit entities** — things that ARE entities but have no page, because they only ever appear as modifiers/relations *inside* other entities. This is the systematic blind spot from the failure log (`图书馆操作手册/notes/2026-06-12-entity-layer-failure-patterns.md` B6): token-driven extraction never mints these — they never appear as a heading or grammatical subject, so this recurrence pass is the only place they surface.
    - **Scan**: `_entities/*.md` Context sections + this week's work logs for recurring references that are **not** `[[wikilinks]]` and **not** an existing entity name/alias.
    - **Cluster by referent, not string** — first: group surface variants pointing at the same thing ("Frederick 实验室" / "research group" / "我们 lab" = one referent). Count recurrence on the *referent*, never on exact string. Exact-string matching is the failure mode: each variant appears once, nothing crosses the threshold, the blind spot survives.
    - **Candidate** = a referent naming a *thing* (group, org, lab, team, recurring event, system, method, dataset) whose variants together appear in **≥2 distinct entity pages** OR across **≥5 days**.

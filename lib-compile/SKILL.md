@@ -43,6 +43,8 @@ Scaffold minimal folder infrastructure.
 
 Walk all folders with `_folder.md`, compile vault root first, then each folder. Also compile `_entities/_folder.md`. Skip unchanged.
 
+Each folder writes only its own `_folder.compiled.yaml` / `_index.md` — **disjoint write targets**, so per-folder compiles fan out in parallel (vault root first as a barrier, then the rest concurrently). See `_stdlib/skill-conventions.md` Orchestration.
+
 ## Constraints
 
 - `_index.md` has user-added content → preserve it

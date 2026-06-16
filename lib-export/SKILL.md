@@ -31,34 +31,21 @@ Steps are ordered and gated. Step 0 and Step 3 are **hard gates** — do not ski
 `ls`/`grep _entities/` for entities this session touches。了解它们当前状态,以便正确归属。
 
 ### Step 3 — Placement & heading — HARD GATE
-**Every new `## heading` MUST be a `[[wikilink]]`. A free-text `## heading` is forbidden.**
-**Prefer existing structure over new headings.** Export should place content where it belongs inside the current work-log hierarchy, not manufacture top-level sections for convenience.
+**Every new `## heading` MUST be a `[[wikilink]]`. Free-text `## heading` is forbidden.**
 
-Decide placement per section of content:
-1. 已有匹配的 `## [[entity]]` section → write inside that section.
-   - First look for a matching existing `###`/deeper subsection under that `##` (by entity name, topic, task, meeting, artifact, or obvious semantic match).
-   - If a matching subsection exists, append there.
-   - If no matching subsection exists but the content is a small update, append as a bold lead / bullet under the parent `##`, not a new heading.
-   - Create a new `###` only when it names a genuinely stable subtopic/artifact under the parent entity and improves future scanning. `###` is local organization, not entity birth by default.
-2. 没有匹配 `##`,但内容**实质上是关于某个 entity** → resolve 主体 entity:
-   - `grep _entities/` 命中(名字或 alias) → 复用 `## [[that-entity]]`。
-   - 没命中,但这东西值得独立成 entity → **直接 mint 新的 `## [[new-entity]]`**。写一个指向尚不存在页面的 wikilink 是合法的——这正是 entity 诞生的方式(unresolved link)。命名用 kebab-case,选一个稳定的 canonical name。
-3. 内容少 / 没有清晰的主体 entity → 不开新 heading,直接在已有 section 下插几行 inline。
+Placement is **judgment from the work log's current structure** (you hold it from Step 1), **not a fixed ladder**. Decide per section against these constraints — see `_stdlib/skill-conventions.md` Write side:
+- **Reuse before create.** Matching `## [[entity]]` exists → write inside it; matching `###` child exists → append there. **Never open a second `## [[entity]]`** or duplicate a child `###`.
+- **A child stays under its parent.** Content belonging under an existing `## [[parent]]`'s `###` stays there — don't promote it to top-level.
+- **Mint `## [[new-entity]]` only** for a standalone, recurring, retrievable *thing* with no existing section. An unresolved wikilink is how entities are born — kebab-case canonical name.
+- **Small / no clear subject** → inline under the relevant section, no new heading.
 
-判断"挂已有 vs mint 新":内容是不是反复出现、值得日后被检索的一个独立 thing?是 → mint。只是某 entity 的一条进展 → 挂到那个 entity 下。拿不准 → 挂已有 / inline(宁可不爆炸)。
-
-Nested placement examples:
-- If `## [[Moonbow-Intelligence]]` already contains `### [[Book-Skill-Distillation]]`, a new book2skill update goes under that `###`, not a new top-level `## [[Book-Skill-Distillation]]`.
-- If `## [[MyLibrary]]` exists and the update is one workflow question, append under that parent with a bold lead; don't create `## [[MyLibrary]] #AI总结` unless there is no existing MyLibrary section.
-- If a nested update introduces a new stable artifact with a repo/paper URL, link the nested name (`### [[vibe-trading|Vibe-Trading]]`) but keep it inside the parent `##` unless the whole export is about that artifact.
+判断"挂已有 vs mint 新":反复出现、值得日后检索的独立 thing → mint;只是某 entity 的一条进展 → 挂下面;拿不准 → 挂已有 / inline(宁可不爆炸)。
 
 ### Step 4 — Write
 直接 edit 工作记录。**只 append/insert,绝不 overwrite Wayne 已有内容。**
 - AI 生成的 heading 打 `#AI总结` tag。
 - 描述性小标题降级成 **bold lead 行**,不要占用 `##`(那是 entity 的位置)。
-- Do not duplicate an existing entity section just to add AI-generated content. If a matching `## [[entity]]` exists, insert there.
-- If adding to an existing `###`, keep the same heading and append a clearly marked paragraph or bullet block (`**Export 补充:** #AI总结`), rather than creating another same-name `###`.
-- New `##` is last resort: only when no appropriate parent entity section exists in the target work log.
+- 写进已有 `###` 时保持原标题,append 一段 `**Export 补充:** #AI总结`,别再造同名 `###`。
 
 ### Step 5 — Report new entities（不建页）
 列出本次写下的、但 `_entities/` 里**还不存在页面**的 `## [[entity]]` headings。

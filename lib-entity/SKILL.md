@@ -48,26 +48,29 @@ Given content (a file or section), extract and manage entities:
 
 ## Nested Heading Promotion
 
-When extracting from work logs or settled notes, do not stop at `##` headings. Treat `###`/deeper headings as named sub-artifacts inside the parent entity. If the nested artifact has an external source link or explicit relevance signal, it should be promoted to its own entity and then linked from the parent context.
+Don't stop at `##` headings. A `###`/deeper heading is a candidate entity when it names a thing (project, repo, paper, service, person, concept). Heading level only affects settle *consumption* — never entity *extraction*.
 
-Rules:
-- Create entity: nested heading + GitHub/paper/service/local-repo link + relevance signal.
-- Usually create entity: nested heading + external link, even without explicit relevance, if the surrounding text analyzes its behavior.
-- Do not create entity: generic meeting subheadings ("组会", "Thinking", "Next steps") unless they name a stable person/project/tool/concept.
-- Keep parent relations: add `referenced-by:: [[parent-entity]]` or `related-to:: [[parent-entity]]` as appropriate.
+**Create liberally — the cost of an entity is not its count.** A well-connected graph (hub entities + local clusters) absorbs leaf entities at near-zero query cost. The real failure is an **orphan** (no relation) or a **collision** (name clashes with an existing entity), never "too many." So:
+- **Heading/name + its own external identifier** (GitHub/paper/service URL, local repo path) → create/resolve the entity, even if the parent `##` belongs to another entity. (`### Vibe-Trading` + its repo under a Moonbow log ⇒ `[[vibe-trading]]`.)
+- **A name merely mentioned inside another artifact's prose** (no heading, no own identifier) → don't mint standalone; record it as a relation on the host entity.
+- **Generic subheadings** ("组会", "Thinking", "Next steps") → not entities unless they name a stable thing.
+
+**Two mandatory guards (these are the real cost, not count):**
+- **Attach, never orphan.** Every newly minted entity gets a relation back to its parent hub (`related-to:: [[parent]]` / `referenced-by:: [[parent]]`).
+- **Canonical naming + dedup.** Before minting, check the name and all `aliases:` across `_entities/` by *referent, not exact string* (same as lib-review 认知层). Reuse on match; otherwise pick one stable kebab-case canonical name.
 
 ## Source Check (absorbed from lib-source)
 
 Check external sources referenced in entity Access sections for changes.
 
 1. Scan `_entities/` for entities with repo/service references in Access
-2. Check by type: local repo → `git log --since=...`, GitHub URL → `gh api`, service → HTTP HEAD
-3. Changes found → append Context entry with summary
+2. **Check each source (fan out).** Independent reads → one subagent per source per `_stdlib/skill-conventions.md` Orchestration; each returns a bounded, provenance-anchored temp summary. Local repo → `git log --since=...`, GitHub URL → `gh api`, service → HTTP HEAD.
+3. Changes found → single writer appends a Context entry per entity (hold each page's structure; append-only).
 4. Report: changed / clean / unreachable
 
 ## Constraints
 
-- Intake explosion control: entities nested in another artifact's description → don't create standalone
+- Entity count is cheap; orphans and name collisions are not — every new entity must attach to a hub (relation) and pass canonical-name dedup. See Nested Heading Promotion.
 - Entity pages are append-only for Context (never delete existing entries)
 - Summary rewrite: only when context accumulates ~5 new entries
 - Relations stored on the "passive" side

@@ -36,6 +36,7 @@ Search the vault using the entity layer as primary index. Three query depths. Pu
 **Layer 3: Deep aggregation** — "compile everything for a report"
 - Follow Access as action guide: git log, read storage folder, call external services
 - Expand Relations recursively
+- **Fan out** — independent reads per source/entity, map-reduce distillation per `_stdlib/skill-conventions.md` Orchestration (read-only ⇒ pure fan-out + reduce, no shared-writer concern). Reduce to a bounded top before composing the report.
 - Cost: many reads + possible external calls
 
 ## Depth Selection

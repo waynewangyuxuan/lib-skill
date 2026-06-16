@@ -4,7 +4,7 @@
 
 For each `## heading`, find target entity. Stop at first match.
 
-`##` headings are the **settle consumption boundary**. Deeper headings (`###`, `####`) are nested content under the current settle target; do not create separate settle log entries for them. However, nested headings are still entity candidates for lib-entity extraction, especially when paired with a GitHub/paper/service URL or explicit relevance language.
+`##` headings are the **settle consumption boundary**. Deeper headings (`###`, `####`) are nested content under the current settle target; do not create separate settle log entries for them. (Nested headings are still entity candidates — but that is lib-entity's job, not settle's. See Part 4.)
 
 **Priority 1 — Wikilink**: Extract `[[target]]` from heading → find matching entity page in `_entities/`. File name match (case-insensitive).
 
@@ -52,10 +52,4 @@ Read `## Settle Consumer: {name}` in storage folder's `_folder.md`. Natural lang
 
 ## Part 4: Nested Entity Promotion
 
-After consumer execution, scan the full settled section body for nested entity candidates:
-
-- Heading candidates: `### Name` / `#### Name`
-- Link candidates: `[name](https://github.com/...)`, paper URLs, service URLs, local repo paths
-- Relevance signals: "高度相关", "重要参考", "prior art", "similar to", "inspired by", "Frederick's question", repeated mention, or use as a style/reference source
-
-If a nested candidate is unresolved and has both a heading/name and an external identifier (repo, paper, service URL), create an entity page through lib-entity and convert the nested heading or first mention to a wikilink. Keep the parent section's settle backlink unchanged.
+Nested `###`/links/relevance inside a settled section are entity candidates, but **settle does not mint entities** — it passes the full section body to lib-entity, which owns the promotion rule (heading/name + own external identifier → entity; attach + canonical-name dedup). See lib-entity → Nested Heading Promotion. The parent section's settle backlink is unchanged regardless.

@@ -19,15 +19,36 @@ The vault uses an entity-first architecture:
 
 Skills are lightweight intelligence that can be inserted at any point — settle time, query time, review time. They are NOT heavy procedural pipelines. Keep skills short, focused on constraints not procedures. Let Claude use its native capabilities.
 
-## Subagent Pattern
+## Orchestration — fan-out reads, single-writer writes
 
-Skills that do substantive work SHOULD dispatch subagents for the actual work:
-1. Main skill reads config, determines scope, dispatches subagent
-2. Subagent does the work (reads, writes, analysis)
-3. Subagent returns structured result
-4. Main skill validates, writes to vault
+Work is a pipeline of read→write units, **not** a two-phase "read everything, then write everything." A big read decomposes into small read→write units that interleave — a unit may write as soon as its own read returns while other reads still run. The win from interleaving is **latency**, not parallel writes to a shared file.
 
-When NOT to subagent: trivial operations (read one file, write one line).
+**Parallelize by the independence of the WRITE target. Three tiers:**
+- **Reads / scans / source-checks / audits** → always fan out. No mutation ⇒ always independent.
+- **Writes to disjoint files** (compile's per-folder yaml; minting new entity pages with distinct canonical names) → may run in parallel; no contention.
+- **Writes to one shared file** (工作记录, an existing entity page) → **must serialize through a single writer.**
+
+**The single writer holds the target's live heading tree.** Any shared write target is owned by one serial writer that maintains the current `##`/`###` structure of that file and updates it after every write; each unit decides placement against this live tree. This is the mechanism that prevents duplicate `## [[entity]]` sections and write races — never let two units append to the same file blind.
+
+### Read side — map-reduce distillation
+
+When a read fans out wide (many repos, many entity pages, a long transcript):
+1. **Map** — each subagent reads its source and writes a **distilled temp artifact**: not a raw dump — distilled, reflected, framed in *our* (the vault's) view, bounded and inspectable in length.
+2. **Reduce** — fold temp level-1 → level-2 → … recursively, each level bounded, so the main agent only ever reads the top.
+3. **Hard constraints:**
+   - **temp lives OUTSIDE the vault** (e.g. `/tmp/lib-run-{date}/`) — the auto-commit watcher commits anything inside `~/MyLibrary`.
+   - **provenance survives the reduce** — carry source anchors (note id, repo commit, URL) through every level. Distill prose, never links.
+   - **default shallow** — daily work is 1 level; recurse only for large fan-outs.
+
+### Write side — constraints, not a ladder
+
+Placement into notes/work logs is **judgment from the target's current context**, not a fixed step-by-step procedure. Enforce these constraints; let Claude decide the rest:
+- **Hold the target's live structure before writing** — you cannot place well without it.
+- **Never duplicate** an entity's existing `##` section (or a child entity's existing `###`). Append into it.
+- **Follow the note's existing flow and style** — don't manufacture top-level headings for convenience.
+- **Preserve provenance** on everything written.
+
+When NOT to orchestrate: trivial work (read one file, write one line) → just do it inline.
 
 ## Config Resolution
 
