@@ -20,7 +20,8 @@ over the core type — then infer its family by meaning to get its tier + direct
 | 2 context | Evaluation | `evidence-for`; `baseline-for`/`uses-baseline`; `compares-with` | competes-with, similar-to, contrasts-with, distillation-subject-of |
 | 2 context | Social | `led-by` thing→lead; `collaborator` project→person; `recommended-by` thing→person | reviews/reviewed-by, guest-lecturer, involves, co-authored |
 | 2 context | Application | `applied-to` concept→use; `studied-in` artifact→research/learning line; `feeds-into` tool→projects | guards, central-to |
-| 3 loose | Generic | `related-to` (symmetric); `references` X→cited | — |
+| 2 context | Citation | `referenced-by` cited→citer (the stored form) | `references` (active reverse — collapse into `referenced-by`) |
+| 3 loose | Generic | `related-to` (symmetric) — the only genuinely loose type | — |
 
 **Three types that drain the overloaded `related-to`** (use these instead of defaulting to `related-to`):
 - `studied-in` — an artifact/concept is a reading or topic *within* a research or learning line (e.g. a survey → `[[AI工程的学习和经验]]`).
@@ -44,5 +45,5 @@ side; the reverse is a `grep`:
 
 ## How lib-review audits
 
-- **Structural orphan** = a node with **no Tier-1 edge** (`part-of` / `uses`). Loose-only nodes count as orphans, not as connected.
-- **Under-typed** = a node/hub whose neighbors are **only Tier-3** (`related-to` / `references`) → flag for re-typing to a specific core type.
+- **Orphan** = a node with **no Tier-1 or Tier-2 edge in either direction** (only `related-to`, or no edge at all). Citation/provenance/etc. count as connected — a paper linked only by `referenced-by` is fine.
+- **Under-typed** = a node connected **only by `related-to`** → flag for re-typing to a specific core type.

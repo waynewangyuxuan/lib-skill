@@ -45,7 +45,7 @@ The graph audit scans all `_entities/*.md` + this week's logs — a wide read. *
    - Stale: active entities with no new Context in >14 days → suggest archived
    - Tag health: any tag with >50 entities (split?) or <3 (merge to parent?)
    - Duplicates: entities with overlapping aliases or similar Summaries
-   - Orphans / under-typed: **no Tier-1 edge** (`part-of`/`uses`) = structural orphan; **only Tier-3** (`related-to`/`references`) = under-typed → flag for re-typing (`_stdlib/relations-vocabulary.md`)
+   - Orphans / under-typed: **no Tier-1/Tier-2 edge in either direction** (only `related-to`, or none) = orphan; **connected only by `related-to`** = under-typed → flag for re-typing (`_stdlib/relations-vocabulary.md`)
    - Summary quality: entities with >5 new Context entries since last Summary rewrite
 4. **Entity graph audit — 认知层 (biweekly: even ISO week, or on demand)** — recurrence-promotion:
    Detect **implicit entities** — things that ARE entities but have no page, because they only ever appear as modifiers/relations *inside* other entities. This is the systematic blind spot from the failure log (`图书馆操作手册/notes/2026-06-12-entity-layer-failure-patterns.md` B6): token-driven extraction never mints these — they never appear as a heading or grammatical subject, so this recurrence pass is the only place they surface.
