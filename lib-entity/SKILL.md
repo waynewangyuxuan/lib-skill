@@ -40,7 +40,7 @@ Given content (a file or section), extract and manage entities:
 
 3. **Create**: Unresolved entities → new entity page in `_entities/` with four sections (Summary, Access, Context, Relations).
 
-4. **Update**: Resolved entities → append Context entry (time-descending). Update Relations if new co-occurrences.
+4. **Update**: Resolved entities → append Context entry (time-descending). Update Relations per `_stdlib/relations-vocabulary.md` (core type by family, stored on the passive side).
 
 5. **Tag**: Check `_tags.yaml`. Reuse existing. New tag only if genuinely new community.
 
@@ -56,7 +56,7 @@ Don't stop at `##` headings. A `###`/deeper heading is a candidate entity when i
 - **Generic subheadings** ("组会", "Thinking", "Next steps") → not entities unless they name a stable thing.
 
 **Two mandatory guards (these are the real cost, not count):**
-- **Attach, never orphan.** Every newly minted entity gets a relation back to its parent hub (`related-to:: [[parent]]` / `referenced-by:: [[parent]]`).
+- **Attach, never orphan.** Every newly minted entity gets a relation back to its parent hub — use the **most specific core type that fits** (a Tier-1 `part-of`/`uses` if structural; `related-to` only as last resort), per `_stdlib/relations-vocabulary.md`.
 - **Canonical naming + dedup.** Before minting, check the name and all `aliases:` across `_entities/` by *referent, not exact string* (same as lib-review 认知层). Reuse on match; otherwise pick one stable kebab-case canonical name.
 
 ## Source Check (absorbed from lib-source)
@@ -73,4 +73,4 @@ Check external sources referenced in entity Access sections for changes.
 - Entity count is cheap; orphans and name collisions are not — every new entity must attach to a hub (relation) and pass canonical-name dedup. See Nested Heading Promotion.
 - Entity pages are append-only for Context (never delete existing entries)
 - Summary rewrite: only when context accumulates ~5 new entries
-- Relations stored on the "passive" side
+- Relations: store each edge once on the passive/derivative side, typed per `_stdlib/relations-vocabulary.md` (reverse via grep; lifecycle pair excepted)
