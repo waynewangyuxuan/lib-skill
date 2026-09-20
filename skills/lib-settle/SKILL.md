@@ -36,13 +36,17 @@ Forward (stream → entity storage) + reverse (entity storage → stream). After
 
 Find work that happened on {date} but isn't in the work log. Sources: vault diff, external repos, work-log links.
 
+**Enumerate before you read.** The repo list comes from `scripts/discover-repos.sh`, which derives it from entity `## Access` sections — **never from a hardcoded list**, which silently drops every project created after it was written. Per-day commits come from `scripts/scan-day.sh {date}`, which applies `--all` (a feature-branch checkout hides its mainline from HEAD), collapses linked worktrees by shared object store, and **filters by author** so a collaborator's repo is not mistaken for your unlogged work. The four failure modes these encode, each learned from a real miss, are in [reverse-scan.md](references/reverse-scan.md) — read it before changing the scan.
+
 **Scan fans out (read side).** Steps 1–3 are independent reads — fan out one subagent per source per [skill-conventions.md](references/skill-conventions.md) → Orchestration (map-reduce distillation): each returns a bounded, provenance-anchored temp artifact in `/tmp/lib-run-{date}/`, not raw diffs. The main agent reads the reduced top.
 
-1. **Vault diff**: `git diff` between day-start and day-end snapshots. Group changed files by entity (file path → entity storage folder or entity page). Ignore vault infra (`.obsidian/`, `.claude/`, `_folder.compiled.yaml`, etc.).
-2. **External repos**: For active entities with repo paths in Access, `git diff` / `git log --since/--until`. One subagent per repo.
+1. **Vault diff**: `git diff` between day-start and day-end snapshots. Group changed files by entity (file path → entity storage folder or entity page). Ignore vault infra (`.obsidian/`, `.claude/`, `_folder.compiled.yaml`, etc.) — **except when the infra *is* the day's work**, in which case say so.
+2. **External repos**: `scripts/scan-day.sh {date}` → one subagent per repo that reports commits. Repos reported as *collaborator-only* are **context, not your unlogged work** — mention them if they explain the day, don't write them up as yours.
 3. **Work log links**: Probe links mentioned in the work log (URLs, repo refs) for enriching context.
-4. **Filter**: Skip entities already covered in the work log (mentioned by name or wikilink).
+4. **Filter**: Skip entities already covered in the work log. **"Covered" means the work is described, not merely that the entity is named** — a log that mentions `## Vibehub` while the repo shipped 50 commits that day is not covered.
 5. **Write to work log — single writer (write side).** One serial writer holds the work log's live `##`/`###` tree. Per unreported entity: **if a `## [[entity]]` section already exists, append into it — never open a second `## [[entity]]`**; if a matching `###` child exists, append there; mint `## [[entity]]` only when no section for it exists. Follow the note's existing flow; tag AI content `#ai-generated`. (See skill-conventions Write side.)
+
+**Feed the next run.** When settle mints an entity for something with a repo, put its **local path** in `## Access` — that is the only thing that makes the next scan see it.
 
 Resource access is currently git + HTTP. Future: per-resource-type accessors (feishu CLI, etc.) configurable via entity Access.
 
@@ -57,3 +61,4 @@ When invoking lib-entity, pass the whole work log/settled sections, not only top
 - `#ai-generated` tag mandatory on all AI-written content
 - Idempotency: skip sections already in Settle Log
 - Unmatched sections: report for human, don't create files
+- **Never propagate credentials.** If a section contains tokens/passwords/keys, do not copy them into entity pages, notes, or any other file — settle the surrounding context only, and flag the section for rotation + relocation to `_personal/secrets` (consumer `skip`)
