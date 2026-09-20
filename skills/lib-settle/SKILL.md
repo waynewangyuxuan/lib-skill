@@ -12,7 +12,9 @@ description: >
 Forward (stream → entity storage) + reverse (entity storage → stream). After settle, invoke lib-entity for entity extraction.
 
 **Vault**: `~/MyLibrary`
-**Shared stdlib**: `../_stdlib/consumer-interface.md` and `../_stdlib/skill-conventions.md` — entity-first matching + consumer execution rules. Read before executing.
+**References**: Read [consumer-interface.md](references/consumer-interface.md),
+[settle-engine.md](references/settle-engine.md), and
+[skill-conventions.md](references/skill-conventions.md) before executing.
 
 ## Triggers
 
@@ -24,7 +26,7 @@ Forward (stream → entity storage) + reverse (entity storage → stream). After
 
 1. **Resolve work log**: Map date to `工作记录/{Month}/{YYYY-M-D}.md`. 4am day boundary: before 4am = yesterday.
 2. **Parse sections**: Split by `## ` headings. Skip preamble and `## Settle Log`. No headings → stop.
-3. **For each section**: Follow settle-engine.md — entity resolution → find storage folder → resolve consumer → execute → collect backlink.
+3. **For each section**: Follow [settle-engine.md](references/settle-engine.md) — entity resolution → find storage folder → resolve consumer → execute → collect backlink.
 4. **Nested entity extraction**: `###`/deeper headings, inline links, and relevance language inside a section do **not** become separate settle targets, but they are entity candidates. lib-entity owns this rule — see its Nested Heading Promotion (the full section body is passed to lib-entity in "After Both Phases").
 5. **Write consolidated settle log**: Append to `## Settle Log #ai-generated` at bottom of work log. One `→ 已沉淀到 [[entity-name]]` per settled section. Don't duplicate existing entries.
 
@@ -34,7 +36,7 @@ Forward (stream → entity storage) + reverse (entity storage → stream). After
 
 Find work that happened on {date} but isn't in the work log. Sources: vault diff, external repos, work-log links.
 
-**Scan fans out (read side).** Steps 1–3 are independent reads — fan out one subagent per source per `_stdlib/skill-conventions.md` Orchestration (map-reduce distillation): each returns a bounded, provenance-anchored temp artifact in `/tmp/lib-run-{date}/`, not raw diffs. The main agent reads the reduced top.
+**Scan fans out (read side).** Steps 1–3 are independent reads — fan out one subagent per source per [skill-conventions.md](references/skill-conventions.md) → Orchestration (map-reduce distillation): each returns a bounded, provenance-anchored temp artifact in `/tmp/lib-run-{date}/`, not raw diffs. The main agent reads the reduced top.
 
 1. **Vault diff**: `git diff` between day-start and day-end snapshots. Group changed files by entity (file path → entity storage folder or entity page). Ignore vault infra (`.obsidian/`, `.claude/`, `_folder.compiled.yaml`, etc.).
 2. **External repos**: For active entities with repo paths in Access, `git diff` / `git log --since/--until`. One subagent per repo.

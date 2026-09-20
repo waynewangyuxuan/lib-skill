@@ -10,7 +10,7 @@ For each `## heading`, find target entity. Stop at first match.
 
 **Priority 2 — Entity aliases**: Check heading text against `aliases:` in entity page frontmatter (case-insensitive substring). Entity file name is implicit alias. Multiple matches → prefer longest alias.
 
-**Priority 3 — Fuzzy**: Claude's judgment against known entity names. Low confidence → unmatched.
+**Priority 3 — Fuzzy**: The agent's judgment against known entity names. Low confidence → unmatched.
 
 **No match** → report for user, don't create files or backlinks.
 

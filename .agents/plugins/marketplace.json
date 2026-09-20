@@ -1,7 +1,7 @@
 {
-  "name": "lib-skill-local",
+  "name": "lib-skill",
   "interface": {
-    "displayName": "lib-skill local"
+    "displayName": "lib-skill"
   },
   "plugins": [
     {

@@ -33,7 +33,7 @@ Steps are ordered and gated. Step 0 and Step 3 are **hard gates** — do not ski
 ### Step 3 — Placement & heading — HARD GATE
 **Every new `## heading` MUST be a `[[wikilink]]`. Free-text `## heading` is forbidden.**
 
-Placement is **judgment from the work log's current structure** (you hold it from Step 1), **not a fixed ladder**. Decide per section against these constraints — see `_stdlib/skill-conventions.md` Write side:
+Placement is **judgment from the work log's current structure** (you hold it from Step 1), **not a fixed ladder**. Decide per section against these constraints — see [skill-conventions.md](references/skill-conventions.md) → Write side:
 - **Reuse before create.** Matching `## [[entity]]` exists → write inside it; matching `###` child exists → append there. **Never open a second `## [[entity]]`** or duplicate a child `###`.
 - **A child stays under its parent.** Content belonging under an existing `## [[parent]]`'s `###` stays there — don't promote it to top-level.
 - **Mint `## [[new-entity]]` only** for a standalone, recurring, retrievable *thing* with no existing section. An unresolved wikilink is how entities are born — kebab-case canonical name.

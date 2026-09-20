@@ -53,8 +53,8 @@ Dynamically assembles a guide to how this Obsidian vault works. Read-only.
 | Folder storage config | `{folder}/_folder.md` |
 | Work logs | `工作记录/{Month}/{YYYY-M-D}.md` |
 | Past reviews | `_reviews/` |
-| Skill source | `~/.claude/skills/lib-{name}/SKILL.md` |
-| Stdlib | `~/.claude/skills/_stdlib/` |
+| Skill source | Current installation, such as `~/.agents/skills/lib-{name}/SKILL.md` (Codex) or `~/.claude/skills/lib-{name}/SKILL.md` (Claude Code) |
+| Bundled references | The selected skill's `references/` directory |
 
 ## Constraints
 

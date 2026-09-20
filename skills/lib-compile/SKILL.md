@@ -11,7 +11,8 @@ description: >
 Reads `_folder.md` and makes the folder match its description: compiled config, dashboard file, subfolder structure. Storage-layer only — identity lives in entity pages.
 
 **Vault**: `~/MyLibrary`
-**Shared stdlib**: `../_stdlib/yaml-schema.md` (or installed as `_stdlib/yaml-schema.md`) — config schema reference.
+**References**: Read [yaml-schema.md](references/yaml-schema.md) before compiling. Read
+[skill-conventions.md](references/skill-conventions.md) when orchestration or shared write rules apply.
 
 ## Triggers
 
@@ -24,7 +25,7 @@ Reads `_folder.md` and makes the folder match its description: compiled config, 
 **Input**: `{folder}` — folder name or path
 
 1. Read `_folder.md` (source of truth), existing `_folder.compiled.yaml`, and list folder contents
-2. Understand intent: purpose, described structure, naming rules, Claude behavior rules
+2. Understand intent: purpose, described structure, naming rules, agent behavior rules
 3. Realize structure: create described subfolders that don't exist
 4. Extract config: map natural language to yaml keys per yaml-schema.md. **Storage config only** — aliases, matching, source.repo have moved to entity pages. Only extract: settle (consumer, target, dimensions), entry, frontmatter, scaffold.
 5. Semantic diff: compare extracted config with current state. No changes → skip.
@@ -43,7 +44,7 @@ Scaffold minimal folder infrastructure.
 
 Walk all folders with `_folder.md`, compile vault root first, then each folder. Also compile `_entities/_folder.md`. Skip unchanged.
 
-Each folder writes only its own `_folder.compiled.yaml` / `_index.md` — **disjoint write targets**, so per-folder compiles fan out in parallel (vault root first as a barrier, then the rest concurrently). See `_stdlib/skill-conventions.md` Orchestration.
+Each folder writes only its own `_folder.compiled.yaml` / `_index.md` — **disjoint write targets**, so per-folder compiles fan out in parallel (vault root first as a barrier, then the rest concurrently). See [skill-conventions.md](references/skill-conventions.md) → Orchestration.
 
 ## Constraints
 
