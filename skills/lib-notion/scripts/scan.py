@@ -2,11 +2,11 @@
 """Incremental, read-only Notion scan for MyLibrary. No page content enters the vault."""
 
 import argparse
+import ctypes
 import getpass
 import json
 import os
 import re
-import subprocess
 import sys
 import tempfile
 import time
@@ -44,15 +44,76 @@ def token_from_environment_or_keychain():
     if token:
         return token
     if sys.platform == "darwin":
-        result = subprocess.run(
-            ["security", "find-generic-password", "-w", "-a", getpass.getuser(), "-s", KEYCHAIN_SERVICE],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            return result.stdout.strip()
+        token = keychain_read()
+        if token:
+            return token
     raise ScanError("No Notion token: run scripts/store-token-macos.sh or set NOTION_API_KEY securely.")
+
+
+def keychain_functions():
+    framework = ctypes.CDLL("/System/Library/Frameworks/Security.framework/Security")
+    find = framework.SecKeychainFindGenericPassword
+    find.argtypes = [ctypes.c_void_p, ctypes.c_uint32, ctypes.c_char_p, ctypes.c_uint32,
+                     ctypes.c_char_p, ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ctypes.c_void_p),
+                     ctypes.POINTER(ctypes.c_void_p)]
+    find.restype = ctypes.c_int32
+    return framework, find
+
+
+def keychain_read():
+    framework, find = keychain_functions()
+    service = KEYCHAIN_SERVICE.encode()
+    account = getpass.getuser().encode()
+    length = ctypes.c_uint32()
+    data = ctypes.c_void_p()
+    status = find(None, len(service), service, len(account), account,
+                  ctypes.byref(length), ctypes.byref(data), None)
+    if status == -25300:  # errSecItemNotFound
+        return None
+    if status != 0:
+        raise ScanError(f"Keychain read failed with OSStatus {status}")
+    if length.value == 0:
+        return None
+    try:
+        return ctypes.string_at(data, length.value).decode()
+    finally:
+        free = framework.SecKeychainItemFreeContent
+        free.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+        free.restype = ctypes.c_int32
+        free(None, data)
+
+
+def keychain_store(token):
+    if sys.platform != "darwin":
+        raise ScanError("Keychain storage requires macOS")
+    if not token:
+        raise ScanError("Refusing to store an empty Notion token")
+    framework, find = keychain_functions()
+    service = KEYCHAIN_SERVICE.encode()
+    account = getpass.getuser().encode()
+    password = token.encode()
+    buffer = ctypes.create_string_buffer(password)
+    item = ctypes.c_void_p()
+    status = find(None, len(service), service, len(account), account, None, None, ctypes.byref(item))
+    if status == 0:
+        modify = framework.SecKeychainItemModifyAttributesAndData
+        modify.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint32, ctypes.c_void_p]
+        modify.restype = ctypes.c_int32
+        status = modify(item, None, len(password), ctypes.cast(buffer, ctypes.c_void_p))
+        core_foundation = ctypes.CDLL("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation")
+        core_foundation.CFRelease.argtypes = [ctypes.c_void_p]
+        core_foundation.CFRelease(item)
+    elif status == -25300:  # errSecItemNotFound
+        add = framework.SecKeychainAddGenericPassword
+        add.argtypes = [ctypes.c_void_p, ctypes.c_uint32, ctypes.c_char_p, ctypes.c_uint32,
+                        ctypes.c_char_p, ctypes.c_uint32, ctypes.c_void_p, ctypes.POINTER(ctypes.c_void_p)]
+        add.restype = ctypes.c_int32
+        status = add(None, len(service), service, len(account), account, len(password),
+                     ctypes.cast(buffer, ctypes.c_void_p), None)
+    if status != 0:
+        raise ScanError(f"Keychain write failed with OSStatus {status}")
+    if keychain_read() != token:
+        raise ScanError("Keychain did not retain the Notion token")
 
 
 def configured_roots():
@@ -259,12 +320,16 @@ def scan(client, state_path, roots, since=None, output_dir=None, now=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["scan"])
+    parser.add_argument("command", choices=["scan", "store-token"])
     parser.add_argument("--state", type=Path, default=DEFAULT_STATE)
     parser.add_argument("--since", help="ISO-8601 timestamp for an explicit backfill window")
     parser.add_argument("--output-dir", type=Path)
     args = parser.parse_args()
     try:
+        if args.command == "store-token":
+            keychain_store(sys.stdin.read().strip())
+            print("Stored nonempty Notion token in the dedicated macOS Keychain item.")
+            return 0
         path = scan(NotionClient(token_from_environment_or_keychain()), args.state, configured_roots(), args.since, args.output_dir)
     except (ScanError, ValueError, json.JSONDecodeError) as error:
         print(f"lib-notion: {error}", file=sys.stderr)
