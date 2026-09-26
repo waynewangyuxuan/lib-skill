@@ -27,9 +27,9 @@ Dynamically assembles a guide to how this Obsidian vault works. Read-only.
 | `folders` | `01-folder-system` | Storage layer: _folder.md → compiled yaml → _index.md |
 | `content` / `settle` | `02-content-flow` | Stream → entity settle, consumer abstraction, reverse settle |
 | `frontmatter` | `04-frontmatter` | Templater + frontmatter conventions |
-| `sources` / `external` | `05-external-sources` | Source sync via entity Access sections (外部资源/ deprecated) |
+| `sources` / `external` / `notion` | `05-external-sources` | Source links via entity Access; Notion live scan via lib-notion (外部资源/ deprecated) |
 | `review` | `06-review` | EOD/EOW review + entity graph audit |
-| `skills` | `07-skills` | Skill system: lib-settle, lib-entity, lib-context, lib-review, lib-source, lib-compile, lib-export |
+| `skills` | `07-skills` | Skill system: lib-settle, lib-entity, lib-search, lib-review, lib-notion, lib-compile, lib-export |
 | `ui` / `theme` | `08-ui-ux` | Theme, DataviewJS, dashboard |
 | `project` / `overview` | `00-project-room` | Conventions, constraints, long-term vision |
 | (no arg) | — | Full overview of all subsystems |
@@ -53,6 +53,7 @@ Dynamically assembles a guide to how this Obsidian vault works. Read-only.
 | Folder storage config | `{folder}/_folder.md` |
 | Work logs | `工作记录/{Month}/{YYYY-M-D}.md` |
 | Past reviews | `_reviews/` |
+| Notion source scan | `lib-notion` skill; checkpoint outside the vault at `~/.local/state/lib-notion/state.json` |
 | Skill source | Current installation, such as `~/.agents/skills/lib-{name}/SKILL.md` (Codex) or `~/.claude/skills/lib-{name}/SKILL.md` (Claude Code) |
 | Bundled references | The selected skill's `references/` directory |
 

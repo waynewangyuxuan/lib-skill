@@ -74,6 +74,7 @@ bash install.sh claude-code
 |-------|------|
 | lib-settle | 内容分发（forward + reverse），完成后调 lib-entity |
 | lib-entity | entity 提取/解析/创建/更新 + source check |
+| lib-notion | Notion 个人 workspace 的增量扫描与 EOD 来源交接 |
 | lib-search | entity-first 搜索（三层深度） |
 | lib-review | EOD/EOW review + entity graph 审计 |
 | lib-compile | folder storage config 编译 |

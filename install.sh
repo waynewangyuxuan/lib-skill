@@ -4,7 +4,7 @@ set -euo pipefail
 
 repo_dir="$(cd "$(dirname "$0")" && pwd)"
 agent_name="${1:-claude-code}"
-skills=(lib-compile lib-entity lib-export lib-manual lib-review lib-search lib-settle)
+skills=(lib-compile lib-entity lib-export lib-manual lib-notion lib-review lib-search lib-settle)
 
 case "$agent_name" in
   codex)

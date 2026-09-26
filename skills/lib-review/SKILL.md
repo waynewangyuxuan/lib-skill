@@ -8,7 +8,7 @@ description: >
 
 # lib-review — EOD/EOW Review Generator
 
-Produces structured review files from work logs. Two commands: `eod` (daily) and `eow` (weekly). EOW includes entity graph audit (运维层 + 认知层).
+Produces structured review files from work logs and connected daily sources. Two commands: `eod` (daily) and `eow` (weekly). EOW includes entity graph audit (运维层 + 认知层).
 
 **Vault**: `~/MyLibrary`
 
@@ -21,17 +21,17 @@ Produces structured review files from work logs. Two commands: `eod` (daily) and
 
 **Input**: optional `{date}` (default: today, respects 4am day boundary)
 
-1. Resolve work log path: `工作记录/{Month}/{YYYY-M-D}.md`
-2. Run lib-search for today → get entities touched
-3. Run lib-settle for {date} → get settle report
-4. Extract `- [ ]` TODOs from work log, grouped by section
-5. Entity report: new entities created today, state changes (captured → active)
-6. Write review file to `_reviews/review-{M-DD}.md`:
+1. Run `lib-notion scan` when Notion is configured. Read its private temporary manifest and distill changed pages with source links, page IDs, edit timestamps, open tasks, and access gaps. If it fails, record source status as unreachable and continue reviewing available inputs; never label the day fully scanned.
+2. Resolve work log path: `工作记录/{Month}/{YYYY-M-D}.md`. When present, run lib-search and lib-settle for {date}; extract `- [ ]` TODOs by section. When absent, continue if Notion has changed pages.
+3. Resolve substantive Notion changes against existing entities with lib-entity's dedup and attachment rules. Keep Notion editable as the source; write only concise, provenance-linked Context when warranted. Deduplicate against work-log content from the same day.
+4. Entity report: new entities created today, state changes (captured → active).
+5. Write review file to `_reviews/review-{M-DD}.md`:
    - Entities Touched (with [[wikilinks]] to entity pages)
    - Content Settled
    - Entity Updates (new / state changed)
    - Open TODOs
    - Unmatched Sections
+   - Notion Changes (linked page summaries, changed/clean/unreachable status, and any coverage gaps)
 
 ## Command: eow
 
@@ -67,7 +67,8 @@ The graph audit scans all `_entities/*.md` + this week's logs — a wide read. *
 
 ## Constraints
 
-- Work log missing → stop, don't write empty review
+- Work log missing and no changed connected source → stop, don't write empty review
+- A Notion scan failure does not advance its checkpoint and must appear as an explicit review gap
 - Entity audit is advisory — Wayne approves before any changes
 - 认知层 promotion is **proposal only**: list candidates with evidence; actual promotion = create page via lib-entity after Wayne approves, never automatic
 - No daily reviews for EOW → entity audit still runs

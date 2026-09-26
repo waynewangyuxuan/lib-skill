@@ -63,8 +63,8 @@ Don't stop at `##` headings. A `###`/deeper heading is a candidate entity when i
 
 Check external sources referenced in entity Access sections for changes.
 
-1. Scan `_entities/` for entities with repo/service references in Access
-2. **Check each source (fan out).** Independent reads → one subagent per source per [skill-conventions.md](references/skill-conventions.md) → Orchestration; each returns a bounded, provenance-anchored temp summary. Local repo → `git log --since=...`, GitHub URL → `gh api`, service → HTTP HEAD.
+1. Scan `_entities/` for entities with external references in Access, including Notion page URLs.
+2. **Check each source.** Local repo → `git log --since=...`, GitHub URL → `gh api`, service → HTTP HEAD. Notion → use `lib-notion` for a paginated, authenticated content scan; HTTP HEAD cannot detect page edits. Independent broad reads can use the read-side orchestration in [skill-conventions.md](references/skill-conventions.md).
 3. Changes found → single writer appends a Context entry per entity (hold each page's structure; append-only).
 4. Report: changed / clean / unreachable
 
