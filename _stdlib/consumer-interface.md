@@ -1,80 +1,32 @@
-# Consumer Interface — settle consumer types
+# Event consumer interface
 
-## What is a consumer?
+The processing unit is `(consumer, event_id, revision)`. One Event may update several Entities. Several Events may resolve to the same Entity. Heading levels do not define consumption.
 
-A consumer defines how a storage folder absorbs content from the stream (工作记录).
-Each folder declares its consumer in `_folder.compiled.yaml` under `settle.consumer`.
+## Resolve a target
 
-## Resolution path (entity-first)
+Resolve stable IDs and known Notion mappings first. Then compare names, aliases, descriptions, and the selected Entity bodies. Use typed Relations to check the referent. An uncertain match becomes `needs_review`. Do not create a second Entity merely because an alias differs.
 
-1. Entity resolution: `## heading` → match entity in `_entities/` (by name, aliases, wikilink)
-2. Storage location: read entity page's Access section → find storage folder path
-3. Consumer config: read storage folder's `_folder.compiled.yaml` → `settle.consumer`
-4. Execute consumer on the storage folder
+Read the Entity's Access section and source-specific playbook. Preserve the source snapshot and its precise anchors before proposing Context.
 
-Entity page tells you WHERE to store. Folder compiled yaml tells you HOW to store.
+## Outcomes
 
-## Well-known consumers
+| Outcome | Meaning | Consumption |
+|---|---|---|
+| `integrated` | Declared Entity outputs contain supported knowledge | After the completed apply receipt |
+| `recorded_only` | Retain the Event without formal Entity writes; give a concrete reason | After the completed apply receipt |
+| `needs_review` | Identity or interpretation remains uncertain | Pending |
+| `blocked` | Required evidence, access, validation, or safe write is unavailable | Pending |
 
-### `notes` (vault default)
+Every frozen Event revision needs exactly one outcome. An integrated output has a declared Entity ID, file path, and precise evidence from its own Event revision. Partial coverage requires `coverage_ack` explaining why the gap does not affect the conclusion. Otherwise keep the Event blocked. Blocked or uncertain outcomes have no authorized files. A necessary skip records why no Entity write is warranted. Empty Events stay retained without being marked consumed.
 
-Copy section content to `{target}` path in the storage folder.
-- Target path from `settle.target` (default: `日志/{project}-{M-DD}.md`)
-- Multi-dimension: if `settle.dimensions` defined, match content to dimension by context
-- Mode: copy (verbatim, no rewriting)
-- Add source callout + backlink
+## Stage and apply
 
-### `feature-room`
+Write complete replacement Entity files and the manifest outside the vault. Use [runtime-schema.md](runtime-schema.md). Run `mylibrary validate <staging>` before `mylibrary apply <staging>`. Keep outputs for uncertain or blocked Events out of the formal write set.
 
-For projects with META/. Triage: spec-worthy → fr-ingest to META (as `state: draft`), always save full section to `notes/{YYYY-MM-DD}-{slug}.md` (zero content loss safety net).
-- Backlink includes both META and notes targets
+The runtime accepts formal outputs at `_entities/<name>.md`. Consumption receipts are independent of daily Settle Logs, backlinks, and legacy note copies. Retry publication separately from apply.
 
-### `skip`
+## Legacy folder consumers
 
-Do nothing. Don't settle, don't add backlink.
-Used for: `日子/`, `_personal/`, folders that don't consume from stream.
+Existing `settle.consumer`, `settle.target`, and `settle.dimensions` remain readable by `lib-compile` and historical workflows. `notes` names the existing note-copy policy. `feature-room` names a source-repository workflow. `skip` names an excluded destination.
 
-## Custom consumers
-
-Defined in `_folder.md` as:
-
-```markdown
-## Settle Consumer: {name}
-type: consumer
-inherits: {parent-consumer}
-
-{natural language behavior definition — this IS the prompt}
-```
-
-Compiled yaml declares just the name:
-```yaml
-settle:
-  consumer: {name}
-```
-
-### Resolution at runtime
-
-1. Read `settle.consumer` from folder's compiled yaml
-2. If well-known → execute directly (see above)
-3. If custom → go to `_folder.md`, find `## Settle Consumer: {name}`
-4. Read `inherits:` → know fallback behavior
-5. Read natural language definition → execute as prompt
-6. Can't determine action → fallback to parent consumer
-
-## OOD inheritance chain
-
-```
-_vault default (notes)
-  ├── folder A: notes (inherited, no override)
-  ├── folder B: feature-room (override)
-  ├── folder C: skip (override)
-  └── folder D: bySection (custom, inherits notes)
-        → reads _folder.md definition
-        → fallback to notes behavior
-```
-
-## Entity extraction (post-consumer step)
-
-After consumer execution, settle runs entity extraction on the section content. This is NOT a consumer — it's a pipeline step that runs after every consumer (except `skip`).
-
-See lib-settle SKILL.md for entity extraction details.
+Those folder policies do not establish Event consumption. If the user requests a historical note copy, preserve the original, apply its folder contract, and report the copy separately. Never edit the vault's read-only META mirror. An unsupported custom consumer blocks its requested action instead of silently falling back to another behavior.

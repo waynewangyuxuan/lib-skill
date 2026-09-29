@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Copy shared source references into each independently installable skill.
 set -euo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -16,7 +15,9 @@ copy_reference() {
 
 copy_reference yaml-schema.md lib-compile
 copy_reference consumer-interface.md lib-settle
-copy_reference relations-vocabulary.md lib-entity lib-review lib-search
-copy_reference skill-conventions.md lib-compile lib-entity lib-export lib-review lib-search lib-settle
+copy_reference relations-vocabulary.md lib-entity lib-manual lib-review lib-search
+copy_reference skill-conventions.md lib-compile lib-entity lib-export lib-manual lib-notion lib-review lib-search lib-settle
+copy_reference runtime-schema.md lib-compile lib-entity lib-export lib-manual lib-notion lib-review lib-search lib-settle
+copy_reference source-playbooks.md lib-compile lib-entity lib-export lib-manual lib-notion lib-review lib-search lib-settle
 
 echo "Synchronized shared references into distributable skills."

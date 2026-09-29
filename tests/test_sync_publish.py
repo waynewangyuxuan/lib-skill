@@ -1,0 +1,294 @@
+import copy
+from pathlib import Path
+import tempfile
+import unittest
+import uuid
+
+from mylibrary.notion import NotionError, UncertainWrite, rich
+from mylibrary.publish import publish
+from mylibrary.storage import Library, atomic_json, read_json
+from mylibrary.sync import SETUP, collect, setup, source_open
+
+
+def identifier(number):
+    return str(uuid.UUID(int=number))
+
+
+WORKSPACE, EVENTS, PAGES, ENTITIES = [identifier(value) for value in (1, 2, 3, 4)]
+
+
+class MemoryNotion:
+    def __init__(self):
+        self.pages, self.blocks, self.markdown, self.sources = {}, {}, {}, {}
+        self.calls, self.next_id = [], 100
+        self.lose_create = False
+        self.lose_body = False
+        self.hide_query = False
+        self.download_error = False
+
+    def add_page(self, number, source=EVENTS, text="A thought", mention=None, file_url=None):
+        value = identifier(number)
+        self.pages[value] = {"id": value, "url": "https://www.notion.so/" + value.replace("-", ""),
+                             "parent": {"type": "data_source_id", "data_source_id": source},
+                             "properties": {"Name": {"id": "title", "type": "title", "title": [rich("Note")]},
+                                            "Edited": {"type": "last_edited_time", "last_edited_time": "time"}}}
+        words = [rich(text)]
+        if mention:
+            words.append({"type": "mention", "mention": {"type": "page", "page": {"id": mention}}, "plain_text": "@Entity"})
+        self.blocks[value] = [{"id": identifier(number + 1000), "type": "paragraph", "paragraph": {"rich_text": words}}]
+        if file_url:
+            self.blocks[value].append({"id": identifier(number + 2000), "type": "image", "image": {"type": "file", "file": {"url": file_url}}})
+        self.markdown[value] = ""
+        return value
+
+    def query(self, source, filter=None):
+        if self.hide_query and source == ENTITIES:
+            return []
+        pages = [copy.deepcopy(page) for page in self.pages.values() if page.get("parent", {}).get("data_source_id") == source]
+        if filter:
+            pages = [page for page in pages if "".join(item["text"]["content"] for item in page["properties"].get("Entity ID", {}).get("rich_text", [])) == filter["rich_text"]["equals"]]
+        return pages
+
+    def children(self, parent):
+        return copy.deepcopy(self.blocks.get(parent, []))
+
+    def download(self, url):
+        if self.download_error:
+            raise NotionError("image unavailable")
+        return b"actual image bytes"
+
+    def request(self, method, path, payload=None):
+        self.calls.append((method, path, copy.deepcopy(payload)))
+        if path == "/users/me":
+            return {"bot": {"workspace_id": WORKSPACE}}
+        if method == "GET" and path.startswith("/data_sources/"):
+            return copy.deepcopy(self.sources[path.split("/")[-1]])
+        if method == "GET" and path.endswith("/markdown"):
+            return {"object": "page_markdown", "markdown": self.markdown[path.split("/")[2]], "truncated": False, "unknown_block_ids": []}
+        if method == "GET" and path.startswith("/pages/"):
+            return copy.deepcopy(self.pages[path.split("/")[2]])
+        if method == "POST" and path in {"/pages", "/databases", "/views"}:
+            value = identifier(self.next_id)
+            self.next_id += 1
+            if path == "/pages":
+                page = {"id": value, "parent": payload["parent"], "properties": {}, "url": "https://www.notion.so/" + value}
+                self.pages[value] = page
+                self.markdown[value] = ""
+                self._patch_properties(page, payload["properties"])
+                if self.lose_create:
+                    self.lose_create = False
+                    raise UncertainWrite("lost create")
+                return copy.deepcopy(page)
+            if path == "/databases":
+                source = identifier(self.next_id)
+                self.next_id += 1
+                props = {label: dict(prop, id=label) for label, prop in payload["initial_data_source"]["properties"].items()}
+                self.sources[source] = {"id": source, "properties": props}
+                return {"id": value, "data_sources": [{"id": source}]}
+            return {"id": value}
+        if method == "PATCH" and path.endswith("/children"):
+            return {"results": [dict(item, id=identifier(self.next_id + index)) for index, item in enumerate(payload["children"])]}
+        if method == "PATCH" and path.endswith("/markdown"):
+            value = path.split("/")[2]
+            self.markdown[value] = payload["replace_content"]["new_str"]
+            if self.lose_body:
+                self.lose_body = False
+                raise UncertainWrite("lost body update")
+            return {"object": "page_markdown", "markdown": self.markdown[value]}
+        if method == "PATCH" and path.startswith("/pages/"):
+            page = self.pages[path.split("/")[2]]
+            self._patch_properties(page, payload["properties"])
+            return copy.deepcopy(page)
+        raise AssertionError((method, path, payload))
+
+    def _patch_properties(self, page, properties):
+        for label, prop in properties.items():
+            kind = next(key for key in prop if key != "type")
+            page["properties"][label] = dict(prop, type=kind)
+
+
+class SyncTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.vault = Path(self.temporary.name)
+        self.client = MemoryNotion()
+        (self.vault / "_entities").mkdir()
+        atomic_json(self.vault / SETUP, {"schema_version": 1, "workspace_id": WORKSPACE,
+                    "resources": {"events": {"data_source_id": EVENTS}, "pages": {"data_source_id": PAGES},
+                                  "entities": {"data_source_id": ENTITIES}}})
+
+    def entity(self, name="Example", revision=1):
+        path = self.vault / "_entities/example.md"
+        path.write_text(f"---\nid: ent_example\nname: {name}\ntype: concept\ndescription: A personal example\nrevision: {revision}\n---\n\n## Summary\n\nKnown result\n\n## Access\n\n[[local-note]]\n\n## Context\n\n- First original source\n\n## Relations\n", encoding="utf-8")
+        return path
+
+    def result(self):
+        return publish(self.vault, ["ent_example"], self.client)["results"][0]
+
+    def test_collect_revisions_mentions_bytes_and_scope(self):
+        one = self.client.add_page(10, mention=identifier(50), file_url="https://s3.amazonaws.com/a?X-Amz-Signature=first")
+        self.client.add_page(11, PAGES, "Persistent document")
+        result = collect(self.vault, self.client)
+        self.assertEqual(len(result["observations"]), 2)
+        envelope = next(event for event in result["pending"] if event["identity"]["resource_id"] == one)
+        self.assertEqual(envelope["mentions"], [identifier(50)])
+        self.assertEqual((self.vault / envelope["attachments"][0]["path"]).read_bytes(), b"actual image bytes")
+        self.client.blocks[one][1]["image"]["file"]["url"] = "https://s3.amazonaws.com/a?X-Amz-Signature=second"
+        self.client.pages[one]["properties"]["Edited"]["last_edited_time"] = "later"
+        again = collect(self.vault, self.client)
+        self.assertEqual([item["revision"] for item in again["observations"]], [1, 1])
+        self.assertNotIn("X-Amz-Signature", (self.vault / envelope["raw_path"]).read_text())
+        self.assertEqual({event["input_kind"] for event in result["pending"]}, {"event", "source_update"})
+        self.assertFalse(any(call[1] == "/search" for call in self.client.calls))
+
+    def test_empty_new_page_then_edit_and_missing_attachment(self):
+        page = self.client.add_page(12, text="")
+        first = collect(self.vault, self.client)
+        self.assertEqual(first["pending"], [])
+        self.client.blocks[page][0]["paragraph"]["rich_text"] = [rich("Now written")]
+        self.client.blocks[page].append({"id": identifier(99), "type": "image", "image": {"type": "file", "file": {"url": "https://s3.amazonaws.com/x"}}})
+        self.client.download_error = True
+        second = collect(self.vault, self.client)
+        self.assertEqual(second["observations"][0]["revision"], 2)
+        self.assertEqual(second["pending"][0]["coverage"]["status"], "partial")
+        self.assertEqual(second["pending"][0]["attachments"][0]["status"], "unavailable")
+        self.client.download_error = False
+        self.assertEqual(collect(self.vault, self.client)["observations"][0]["revision"], 3)
+
+    def test_unknown_blocks_and_failed_subtree_are_explicit(self):
+        page = self.client.add_page(13)
+        self.client.blocks[page].append({"id": identifier(99), "type": "future_block", "future_block": {}})
+        report = collect(self.vault, self.client)
+        self.assertEqual(report["pending"][0]["coverage"]["status"], "partial")
+        self.assertEqual(report["pending"][0]["coverage"]["gaps"][0]["block_id"], identifier(99))
+
+    def test_cache_and_historical_do_not_contact_notion(self):
+        self.client.add_page(14)
+        envelope = collect(self.vault, self.client)["pending"][0]
+        count = len(self.client.calls)
+        cached = source_open(self.vault, envelope["source_id"], client=self.client)
+        historic = source_open(self.vault, envelope["event_id"], "historical", 1, self.client)
+        self.assertEqual(cached["status"], "cached")
+        self.assertEqual(historic["source"]["revision"], 1)
+        self.assertEqual(len(self.client.calls), count)
+
+    def test_publish_fixed_page_rename_and_local_links(self):
+        path = self.entity()
+        first = self.result()
+        self.assertEqual(first["status"], "published")
+        page = first["page_id"]
+        self.assertIn("仅本地可用", self.client.markdown[page])
+        self.assertEqual(self.result()["status"], "unchanged")
+        self.entity("Renamed", 2)
+        again = self.result()
+        self.assertEqual(again["page_id"], page)
+        self.assertEqual(again["published_revision"], 2)
+        creates = [call for call in self.client.calls if call[:2] == ("POST", "/pages")]
+        self.assertEqual(len(creates), 1)
+        mapping = read_json(self.vault / "_state/notion/entity-map.json")
+        self.assertEqual(mapping["ent_example"]["page_id"], page)
+
+    def test_lost_create_is_reconciled_once(self):
+        self.entity()
+        self.client.lose_create = True
+        self.assertEqual(self.result()["status"], "uncertain")
+        self.assertEqual(self.result()["status"], "published")
+        self.assertEqual(sum(call[:2] == ("POST", "/pages") for call in self.client.calls), 1)
+
+    def test_lost_create_zero_match_never_blindly_recreates(self):
+        self.entity()
+        self.client.lose_create = True
+        self.result()
+        self.client.hide_query = True
+        self.assertEqual(self.result()["status"], "uncertain")
+        self.assertEqual(sum(call[:2] == ("POST", "/pages") for call in self.client.calls), 1)
+
+    def test_lost_body_response_only_finishes_publication(self):
+        self.entity()
+        self.client.lose_body = True
+        first = self.result()
+        self.assertEqual(first["status"], "retryable")
+        self.assertEqual(self.result()["status"], "published")
+        self.assertEqual(sum(call[0] == "PATCH" and call[1].endswith("/markdown") for call in self.client.calls), 1)
+        self.assertEqual(Library(self.vault).pending(), [])
+
+    def test_human_property_edit_after_lost_body_response_is_preserved(self):
+        self.entity()
+        self.client.lose_body = True
+        first = self.result()
+        self.assertEqual(first["status"], "retryable")
+        page = first["page_id"]
+        self.client.pages[page]["properties"]["Description"]["rich_text"] = [rich("Human description")]
+        self.assertEqual(self.result()["status"], "needs_review")
+        self.assertEqual(self.client.pages[page]["properties"]["Description"]["rich_text"][0]["text"]["content"], "Human description")
+        self.assertEqual(sum(call[0] == "PATCH" and call[1] == "/pages/" + page for call in self.client.calls), 0)
+
+    def test_human_body_and_property_edits_survive_retries(self):
+        self.entity()
+        first = self.result()
+        page = first["page_id"]
+        self.client.markdown[page] += "\nHuman correction"
+        self.assertEqual(self.result()["status"], "needs_review")
+        self.assertEqual(self.result()["status"], "needs_review")
+        self.assertIn("Human correction", self.client.markdown[page])
+        self.client.markdown[page] = first["desired_markdown"]
+        self.client.pages[page]["properties"]["Description"]["rich_text"] = [rich("Human description")]
+        self.assertEqual(self.result()["status"], "needs_review")
+        self.assertEqual(self.result()["status"], "needs_review")
+        self.assertEqual(self.client.pages[page]["properties"]["Description"]["rich_text"][0]["text"]["content"], "Human description")
+
+    def test_duplicate_ids_and_output_feedback_stop(self):
+        self.entity()
+        first = self.result()
+        page = first["page_id"]
+        duplicate = copy.deepcopy(self.client.pages[page])
+        duplicate["id"] = identifier(80)
+        self.client.pages[duplicate["id"]] = duplicate
+        self.assertEqual(self.result()["status"], "needs_review")
+        self.client.pages[page]["parent"]["data_source_id"] = EVENTS
+        self.client.blocks[page] = [{"id": identifier(90), "type": "paragraph", "paragraph": {"rich_text": [rich("Machine output")]}}]
+        report = collect(self.vault, self.client)
+        self.assertEqual(report["observations"], [])
+        self.assertEqual(report["failures"][0]["status"], "excluded_machine_output")
+
+    def test_workspace_mismatch_prevents_any_capture(self):
+        settings = read_json(self.vault / SETUP)
+        settings["workspace_id"] = identifier(900)
+        atomic_json(self.vault / SETUP, settings)
+        self.client.add_page(15)
+        with self.assertRaises(NotionError):
+            collect(self.vault, self.client)
+        self.assertFalse((self.vault / "_events").exists())
+
+
+class SetupTests(unittest.TestCase):
+    def test_dry_run_and_repeat_use_one_resource_set(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            vault = Path(temporary)
+            client = MemoryNotion()
+            parent = client.add_page(50)
+            self.assertEqual(setup(vault, parent, True, client)["remote_writes"], 0)
+            self.assertEqual(client.calls, [])
+            one = setup(vault, parent, client=client)
+            count = sum(call[0] in {"POST", "PATCH"} for call in client.calls)
+            two = setup(vault, parent, client=client)
+            self.assertEqual(one["resources"], two["resources"])
+            self.assertEqual(sum(call[0] in {"POST", "PATCH"} for call in client.calls), count)
+            self.assertEqual(len(one["resources"]), 5)
+
+    def test_setup_lost_create_stops_instead_of_duplicate(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            vault = Path(temporary)
+            client = MemoryNotion()
+            parent = client.add_page(50)
+            client.lose_create = True
+            with self.assertRaises(UncertainWrite):
+                setup(vault, parent, client=client)
+            with self.assertRaises(UncertainWrite):
+                setup(vault, parent, client=client)
+            self.assertEqual(sum(call[:2] == ("POST", "/pages") for call in client.calls), 1)
+
+
+if __name__ == "__main__":
+    unittest.main()

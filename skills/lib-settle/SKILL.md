@@ -1,64 +1,35 @@
 ---
 name: lib-settle
 description: >
-  Use for MyLibrary bidirectional settle workflows: distribute work-log stream
-  content into entity storage, reverse-settle unlogged vault/repo changes, and
-  invoke lib-entity afterward. Triggers include "settle today", "settle all
-  unprocessed", "settle forward", and "settle reverse".
+  Integrate pending MyLibrary Event revisions into stable Entities through a
+  frozen source pack, staging, validation, and recoverable apply. Use for
+  "settle", "settle today", "settle all unprocessed", or explicit historical
+  forward and reverse reads.
 ---
 
-# lib-settle — Bidirectional Stream ↔ Entity Distribution
+# Integrate pending Events
 
-Forward (stream → entity storage) + reverse (entity storage → stream). After settle, invoke lib-entity for entity extraction.
+The input unit is an Event revision, not a daily heading. Multiple Events may update the same Entity. One Event may support several Entities. Preserve original evidence and human corrections.
 
-**Vault**: `~/MyLibrary`
-**References**: Read [consumer-interface.md](references/consumer-interface.md),
-[settle-engine.md](references/settle-engine.md), and
-[skill-conventions.md](references/skill-conventions.md) before executing.
+## Process a frozen batch
 
-## Triggers
+1. Run `mylibrary status`. If Notion input is configured, run `mylibrary collect`. A failed collection is a coverage gap, not an empty successful scan.
+2. Run `mylibrary freeze --output /tmp/lib-run/frozen.json --consumer settle`. Read its Event identities and coverage before loading bodies.
+3. For each input, compare three to five Entity descriptions with `mylibrary search <topic> --limit 5`. Resolve IDs, mappings, and aliases before opening selected bodies.
+4. Load the matching section of [source-playbooks.md](references/source-playbooks.md). Open only the required frozen artifacts and relevant typed neighbors. Give a reason before a second relation hop.
+5. Prepare complete Entity replacement files and one staging manifest outside the vault. Preserve Summary, Access, Context, Relations, types, and prior evidence. Use [runtime-schema.md](references/runtime-schema.md) and [consumer-interface.md](references/consumer-interface.md).
+6. Give each frozen Event one outcome. Each integration cites its own frozen Event evidence. Partial coverage requires `coverage_ack` explaining why the gap cannot affect the conclusion. Otherwise use `blocked`; uncertain identity uses `needs_review`. Neither outcome authorizes files. A necessary no-write outcome is `recorded_only` with a reason.
+7. Run `mylibrary validate <staging>`, then `mylibrary apply <staging>`. Report successful, pending, and blocked Event revisions separately.
+8. Run `mylibrary index`. Publish affected pilot Entities with `mylibrary publish --entity <id>` when publication is in scope. Publication failure does not rerun apply.
 
-- "settle today" / "settle {date}" — both phases + entity extraction
-- "settle forward {date}" / "settle reverse {date}" — single phase
-- "settle all unprocessed"
+An interrupted apply uses `mylibrary recover <run_id>`. A human-edited base blocks replacement and requires a new proposal from that base. Only successful outcomes backed by the completed apply receipt count as consumed.
 
-## Phase 1: Forward Settle
+## Read historical work
 
-1. **Resolve work log**: Map date to `工作记录/{Month}/{YYYY-M-D}.md`. 4am day boundary: before 4am = yesterday.
-2. **Parse sections**: Split by `## ` headings. Skip preamble and `## Settle Log`. No headings → stop.
-3. **For each section**: Follow [settle-engine.md](references/settle-engine.md) — entity resolution → find storage folder → resolve consumer → execute → collect backlink.
-4. **Nested entity extraction**: `###`/deeper headings, inline links, and relevance language inside a section do **not** become separate settle targets, but they are entity candidates. lib-entity owns this rule — see its Nested Heading Promotion (the full section body is passed to lib-entity in "After Both Phases").
-5. **Write consolidated settle log**: Append to `## Settle Log #ai-generated` at bottom of work log. One `→ 已沉淀到 [[entity-name]]` per settled section. Don't duplicate existing entries.
+An explicit date or reverse-settle request may inspect old work logs and repository commits. Use the 04:00 logical day boundary. Load [reverse-scan.md](references/reverse-scan.md) only for repository discovery. Preserve author filtering, all-ref reads, and worktree dedup.
 
-**Then proceed to Phase 2.**
+Capture the selected historical evidence as a bounded Event before new integration. Do not scan all history by default. A heading, backlink, legacy Settle Log, or scanner `seen` entry does not skip a pending Event. Migrate only the pilot Entities.
 
-## Phase 2: Reverse Settle
+Semantic Entity decisions use `lib-entity` rules within the same proposal. Do not run a second direct-write extraction pass after apply. Load [skill-conventions.md](references/skill-conventions.md) when a boundary or legacy folder contract matters.
 
-Find work that happened on {date} but isn't in the work log. Sources: vault diff, external repos, work-log links.
-
-**Enumerate before you read.** The repo list comes from `scripts/discover-repos.sh`, which derives it from entity `## Access` sections — **never from a hardcoded list**, which silently drops every project created after it was written. Per-day commits come from `scripts/scan-day.sh {date}`, which applies `--all` (a feature-branch checkout hides its mainline from HEAD), collapses linked worktrees by shared object store, and **filters by author** so a collaborator's repo is not mistaken for your unlogged work. The four failure modes these encode, each learned from a real miss, are in [reverse-scan.md](references/reverse-scan.md) — read it before changing the scan.
-
-**Scan fans out (read side).** Steps 1–3 are independent reads — fan out one subagent per source per [skill-conventions.md](references/skill-conventions.md) → Orchestration (map-reduce distillation): each returns a bounded, provenance-anchored temp artifact in `/tmp/lib-run-{date}/`, not raw diffs. The main agent reads the reduced top.
-
-1. **Vault diff**: `git diff` between day-start and day-end snapshots. Group changed files by entity (file path → entity storage folder or entity page). Ignore vault infra (`.obsidian/`, `.claude/`, `_folder.compiled.yaml`, etc.) — **except when the infra *is* the day's work**, in which case say so.
-2. **External repos**: `scripts/scan-day.sh {date}` → one subagent per repo that reports commits. Repos reported as *collaborator-only* are **context, not your unlogged work** — mention them if they explain the day, don't write them up as yours.
-3. **Work log links**: Probe links mentioned in the work log (URLs, repo refs) for enriching context.
-4. **Filter**: Skip entities already covered in the work log. **"Covered" means the work is described, not merely that the entity is named** — a log that mentions `## Vibehub` while the repo shipped 50 commits that day is not covered.
-5. **Write to work log — single writer (write side).** One serial writer holds the work log's live `##`/`###` tree. Per unreported entity: **if a `## [[entity]]` section already exists, append into it — never open a second `## [[entity]]`**; if a matching `###` child exists, append there; mint `## [[entity]]` only when no section for it exists. Follow the note's existing flow; tag AI content `#ai-generated`. (See skill-conventions Write side.)
-
-**Feed the next run.** When settle mints an entity for something with a repo, put its **local path** in `## Access` — that is the only thing that makes the next scan see it.
-
-Resource access is currently git + HTTP. Future: per-resource-type accessors (feishu CLI, etc.) configurable via entity Access.
-
-## After Both Phases: Invoke lib-entity
-
-After settle completes, invoke `lib-entity` on today's work log to extract and update entities. This is a separate intelligence — see lib-entity SKILL.md.
-When invoking lib-entity, pass the whole work log/settled sections, not only top-level headings, so nested headings and externally linked artifacts are eligible for entity promotion.
-
-## Constraints
-
-- Settle log entries go in ONE consolidated section at bottom
-- `#ai-generated` tag mandatory on all AI-written content
-- Idempotency: skip sections already in Settle Log
-- Unmatched sections: report for human, don't create files
-- **Never propagate credentials.** If a section contains tokens/passwords/keys, do not copy them into entity pages, notes, or any other file — settle the surrounding context only, and flag the section for rotation + relocation to `_personal/secrets` (consumer `skip`)
+The shared `mylibrary` runtime is required even for a single-skill install. Do not write vault META mirrors or read `_personal/` without an explicit request.

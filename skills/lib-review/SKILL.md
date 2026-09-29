@@ -1,74 +1,30 @@
 ---
 name: lib-review
 description: >
-  Use for MyLibrary end-of-day and end-of-week reviews: "review today",
-  "review week", "lib-review eod", or "lib-review eow". Generates daily or
-  weekly review files and audits entity graph health.
+  Review MyLibrary Event processing, Entity changes, unresolved evidence, and
+  publication state for a day or week. Use for "review today", "review week",
+  "lib-review eod", or "lib-review eow".
 ---
 
-# lib-review — EOD/EOW Review Generator
+# Review receipts and unresolved work
 
-Produces structured review files from work logs and connected daily sources. Two commands: `eod` (daily) and `eow` (weekly). EOW includes entity graph audit (运维层 + 认知层).
+Use completed receipts and original evidence to explain what changed. Daily logs are historical context. An existing heading or old Settle Log does not prove an Event was consumed.
 
-**Vault**: `~/MyLibrary`
+## Daily review
 
-## Triggers
+1. Run `mylibrary status`. Collect configured Notion input when connected. Record a collection failure as a coverage gap.
+2. If the request includes settling, run `lib-settle` on pending Event revisions. Otherwise inspect current receipts without mutating Entities.
+3. Read the selected day's completed runs and unresolved Events. Use the 04:00 boundary for historical dates. Retrieve touched Entity descriptions before opening bodies.
+4. Compare original sources with supported Context. List decisions, open work, necessary skips, `blocked`, `needs_review`, empty inputs, and source access gaps.
+5. Report publication state separately. A local apply can succeed while its Notion view remains unpublished or blocked by a human edit.
+6. Write the authorized review to `_reviews/` without rewriting historical work logs or consuming pending Events merely to produce a report.
 
-- "review today" / "lib-review eod" — end of day
-- "review week" / "lib-review eow" — end of week
+## Weekly review
 
-## Command: eod
+Read the selected week's reviews and receipt-backed Entity changes. Use an explicit bounded audit for stale Context, alias collisions, unsupported descriptions, missing provenance, or under-typed Relations. Preserve the existing relation vocabulary in [relations-vocabulary.md](references/relations-vocabulary.md).
 
-**Input**: optional `{date}` (default: today, respects 4am day boundary)
+Recurring references may justify a promotion proposal. Group by referent and compare names and aliases before proposing a new Entity. Keep the evidence and attachment relation. Do not create or retype Entities as a side effect of an advisory audit. Accepted changes go through `lib-entity` staging and apply.
 
-1. Run `lib-notion scan` when Notion is configured. Read its private temporary manifest and distill changed pages with source links, page IDs, edit timestamps, open tasks, and access gaps. If it fails, record source status as unreachable and continue reviewing available inputs; never label the day fully scanned.
-2. Resolve work log path: `工作记录/{Month}/{YYYY-M-D}.md`. When present, run lib-search and lib-settle for {date}; extract `- [ ]` TODOs by section. When absent, continue if Notion has changed pages.
-3. Resolve substantive Notion changes against existing entities with lib-entity's dedup and attachment rules. Keep Notion editable as the source; write only concise, provenance-linked Context when warranted. Deduplicate against work-log content from the same day.
-4. Entity report: new entities created today, state changes (captured → active).
-5. Write review file to `_reviews/review-{M-DD}.md`:
-   - Entities Touched (with [[wikilinks]] to entity pages)
-   - Content Settled
-   - Entity Updates (new / state changed)
-   - Open TODOs
-   - Unmatched Sections
-   - Notion Changes (linked page summaries, changed/clean/unreachable status, and any coverage gaps)
+An absent work log does not prevent review when Events exist. No available substantive evidence means no padded review. Missing source access and failed checks must appear in the report. Do not claim phone, offline, or Notion UI verification from fixture or API results.
 
-## Command: eow
-
-**Input**: optional `{week}` (default: current ISO week)
-
-The graph audit scans all `_entities/*.md` + this week's logs — a wide read. **Fan out** the scan (map-reduce distillation per [skill-conventions.md](references/skill-conventions.md) → Orchestration). Promotion candidates use the same **attach + canonical-name dedup** guard as lib-entity (this command and lib-entity Nested Heading Promotion share one rule).
-
-1. Resolve week date range (Mon–Sun)
-2. Read daily reviews from `_reviews/review-*.md` within this week
-3. **Entity graph audit — 运维层 (every week)**:
-   - Stale: active entities with no new Context in >14 days → suggest archived
-   - Tag health: any tag with >50 entities (split?) or <3 (merge to parent?)
-   - Duplicates: entities with overlapping aliases or similar Summaries
-   - Orphans / under-typed: **no Tier-1/Tier-2 edge in either direction** (only `related-to`, or none) = orphan; **connected only by `related-to`** = under-typed → flag for re-typing ([relations-vocabulary.md](references/relations-vocabulary.md))
-   - Summary quality: entities with >5 new Context entries since last Summary rewrite
-4. **Entity graph audit — 认知层 (biweekly: even ISO week, or on demand)** — recurrence-promotion:
-   Detect **implicit entities** — things that ARE entities but have no page, because they only ever appear as modifiers/relations *inside* other entities. This is the systematic blind spot from the failure log (`图书馆操作手册/notes/2026-06-12-entity-layer-failure-patterns.md` B6): token-driven extraction never mints these — they never appear as a heading or grammatical subject, so this recurrence pass is the only place they surface.
-   - **Scan**: `_entities/*.md` Context sections + this week's work logs for recurring references that are **not** `[[wikilinks]]` and **not** an existing entity name/alias.
-   - **Cluster by referent, not string** — first: group surface variants pointing at the same thing ("Frederick 实验室" / "research group" / "我们 lab" = one referent). Count recurrence on the *referent*, never on exact string. Exact-string matching is the failure mode: each variant appears once, nothing crosses the threshold, the blind spot survives.
-   - **Candidate** = a referent naming a *thing* (group, org, lab, team, recurring event, system, method, dataset) whose variants together appear in **≥2 distinct entity pages** OR across **≥5 days**.
-   - **Filter out**: existing entities — match the referent against every entity's **name AND `aliases:`** (not just titles), so already-promoted things are suppressed; one-off mentions; generic words; pure role/label phrases ("Quant Trading 角色") that name a slot, not a thing.
-   - **Watch especially for the group-entity shape**: a container/modifier phrase wrapping already-named entities — "X 实验室 / 组 / 团队 / team / 平台 / 系统" co-occurring with a `[[person]]` + `[[project]]` + `[[artifact]]`. That wrapper IS an implicit group entity (e.g. PI + project + workspace ⇒ the lab). It will never be the grammatical subject, so it never self-promotes — this pass is the only place it surfaces.
-   - **For each survivor**: propose promotion — suggested `type` (workstream/person/artifact/concept), a stable kebab-case canonical name, and the **co-occurrence set** (which existing entities would link to it).
-5. System health: stale compiled yaml, unsettled sections
-6. Aggregate per-entity: appearance frequency → rank as focus areas
-7. Write `_reviews/weekly-review-W{N}.md`:
-   - This Week's Focus (top entities by frequency)
-   - Per-Entity Progress
-   - Entity Graph Health — 运维层 (audit results)
-   - Promotion Candidates — 认知层 (implicit entities, with evidence: where seen + co-occurrence set) — biweekly
-   - System Observations
-   - Suggestions
-
-## Constraints
-
-- Work log missing and no changed connected source → stop, don't write empty review
-- A Notion scan failure does not advance its checkpoint and must appear as an explicit review gap
-- Entity audit is advisory — Wayne approves before any changes
-- 认知层 promotion is **proposal only**: list candidates with evidence; actual promotion = create page via lib-entity after Wayne approves, never automatic
-- No daily reviews for EOW → entity audit still runs
+Load [skill-conventions.md](references/skill-conventions.md) for compatibility and retrieval boundaries. Load [runtime-schema.md](references/runtime-schema.md) when inspecting receipts or recovery. Single-skill installs require the shared `mylibrary` runtime.

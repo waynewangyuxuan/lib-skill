@@ -1,64 +1,29 @@
 ---
 name: lib-manual
 description: >
-  Use when starting work in the MyLibrary vault and need to understand how
-  it works, its design principles, paradigms, and where things are. Also use
-  when asking "how does the vault work", "what's the design philosophy",
-  "where do I find X", "vault manual", "lib-manual", or before starting a
-  new feature that touches vault infrastructure.
+  Explain the MyLibrary Event-first workflow, runtime commands, storage,
+  compatibility, and recovery. Use for "lib-manual", "vault manual",
+  "how does the vault work", or a specific subsystem question.
 ---
 
-# lib-manual — Vault User Manual
+# Explain MyLibrary 3.0
 
-Dynamically assembles a guide to how this Obsidian vault works. Read-only.
+Give a bounded, read-only explanation for the requested topic. Start with the relevant shared reference, then inspect actual status or selected local files. Do not load the whole vault to answer one question.
 
-**Vault**: `~/MyLibrary`
-
-## Triggers
-
-- "lib-manual" / "vault manual" / "how does the vault work"
-- "lib-manual {topic}" for deep dive
-
-## Topics
-
-| Keyword | META room | What to read |
-|---|---|---|
-| `entities` | `02-content-flow` | Entity layer: _entities/, entity page structure, tag registry, three-layer query |
-| `folders` | `01-folder-system` | Storage layer: _folder.md → compiled yaml → _index.md |
-| `content` / `settle` | `02-content-flow` | Stream → entity settle, consumer abstraction, reverse settle |
-| `frontmatter` | `04-frontmatter` | Templater + frontmatter conventions |
-| `sources` / `external` / `notion` | `05-external-sources` | Source links via entity Access; Notion live scan via lib-notion (外部资源/ deprecated) |
-| `review` | `06-review` | EOD/EOW review + entity graph audit |
-| `skills` | `07-skills` | Skill system: lib-settle, lib-entity, lib-search, lib-review, lib-notion, lib-compile, lib-export |
-| `ui` / `theme` | `08-ui-ux` | Theme, DataviewJS, dashboard |
-| `project` / `overview` | `00-project-room` | Conventions, constraints, long-term vision |
-| (no arg) | — | Full overview of all subsystems |
-
-## Flow
-
-**No topic → overview**: Read CLAUDE.md + `_vault.compiled.yaml` + `图书馆操作手册/图书馆系统设计.md` + entity layer design spec. Synthesize: identity & philosophy, entity-first architecture (entity page = first-class, folder = storage), three-layer query, skill system (7 lib-* skills + lib-entity), infrastructure.
-
-**Topic given → deep dive**: Read the mapped META room + relevant entity pages. Synthesize: what this subsystem does, why, current state, known gaps, practical guidance.
-
-## Key Navigation
-
-| I want to... | Go to... |
+| Topic | Load first |
 |---|---|
-| Entity registry | `_entities/` |
-| Entity layer spec | `图书馆操作手册/notes/2026-06-04-entity-layer-design.md` |
-| Tag registry | `_entities/_tags.yaml` |
-| Vault rules | `CLAUDE.md` |
-| Vault config | `_vault.compiled.yaml` |
-| Design vision | `图书馆操作手册/图书馆系统设计.md` |
-| Folder storage config | `{folder}/_folder.md` |
-| Work logs | `工作记录/{Month}/{YYYY-M-D}.md` |
-| Past reviews | `_reviews/` |
-| Notion source scan | `lib-notion` skill; checkpoint outside the vault at `~/.local/state/lib-notion/state.json` |
-| Skill source | Current installation, such as `~/.agents/skills/lib-{name}/SKILL.md` (Codex) or `~/.claude/skills/lib-{name}/SKILL.md` (Claude Code) |
-| Bundled references | The selected skill's `references/` directory |
+| Capture, collect, settle | [source-playbooks.md](references/source-playbooks.md) |
+| Storage, staging, receipts, recover, publish | [runtime-schema.md](references/runtime-schema.md) |
+| Entity identity and compatibility | [skill-conventions.md](references/skill-conventions.md) |
+| Typed graph and retrieval | [relations-vocabulary.md](references/relations-vocabulary.md) |
+| Folder configuration | Existing `_folder.md` and compiled YAML; use `lib-compile` |
 
-## Constraints
+The common route is capture or collect, freeze, compare Entity descriptions, load the needed source pack, stage, validate, apply, index, and publish. `mylibrary status` identifies pending or incomplete work. Recovery and publication have separate retries.
 
-- Strictly read-only
-- Output is narrative prose with wikilinks, not data dumps
-- `图书馆系统设计.md` is Wayne's Layer 1 thinking — treat as authoritative
+Local files preserve Events, source snapshots, attachment bytes, Entity memory, mappings, and receipts. Notion provides configured Events and Pages inputs plus fixed Entity output pages. Daily work logs remain readable history. The existing 107 Entity pages, bodies, and type vocabulary remain compatible. Only pilot Entities are migrated by this upgrade.
+
+The shared runtime is installed once with `python3 -m pip install -e <lib-skill-repo>`. Distributed skills include their references, not duplicate Python runtimes. A single-skill installation still requires `mylibrary` on the agent's PATH.
+
+For source details, use `source-open` cache or historical mode before requesting a live read. Explain missing scope, unsupported content, and unverified client behavior. Do not infer a working phone route from a setup response.
+
+Respect root governance and folder contracts. Do not read `_personal/` by default or write META mirrors. Treat earlier design documents as historical context when their daily-heading workflow conflicts with the current Event receipt contract.

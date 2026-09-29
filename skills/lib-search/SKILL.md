@@ -1,54 +1,22 @@
 ---
 name: lib-search
 description: >
-  Entity-first search and context assembly. Use when querying the vault for
-  information about any topic — "search for X", "what do I know about X",
-  "context on X", "找一下X", "关于X的信息". Three query depths: index scan,
-  entity page read, deep aggregation. Also called by other skills for context.
+  Retrieve MyLibrary context through Entity IDs, descriptions, typed Relations,
+  and source snapshots. Use for "search for X", "what do I know about X",
+  "context on X", "找一下X", or "关于X的信息".
 ---
 
-# lib-search — Entity-First Search
+# Retrieve bounded Entity context
 
-Search the vault using the entity layer as primary index. Three query depths. Pure read-only.
+Search preserves authoritative Entity and source files. The runtime may refresh rebuildable index caches. Start with descriptions, then read selected bodies and their evidence. Historical work logs and legacy Entity bodies remain available when needed.
 
-**Vault**: `~/MyLibrary`
-**Entity registry**: `~/MyLibrary/_entities/`
+1. Resolve an explicit ID, Notion reference, or known alias with `mylibrary resolve <ref>`.
+2. Otherwise run `mylibrary search <query> --limit 5`. Compare three to five descriptions before loading full bodies.
+3. Read the best matches. Follow one relevant typed hop with `mylibrary neighbors <id>` when it helps answer the question.
+4. Record the unresolved question and reason before a second hop, broader full-text search, or more candidates. Use a concrete stopping condition. Do not recursively load every connected page.
+5. Open evidence with `mylibrary source-open <ref> --mode cache`. Notion `if-stale` reuses a fresh cache for 300 seconds before checking the source. Use `live` for explicitly current detail or `historical --revision <revision>` for evidence behind a past claim.
+6. Return the answer with Entity links, original sources, source versions, and any coverage gap. Distinguish retained evidence from a live read.
 
-## Triggers
+Search, resolve, and neighbors refresh derived caches when source hashes change. `mylibrary index` rebuilds them explicitly. Refine queries instead of raising `--limit` above five. Legacy pages remain searchable by aliases, descriptions when present, and body text. A zero-result search does not prove the knowledge never existed.
 
-- "search {topic}" / "lib-search {topic}" / "找 {topic}"
-- "search today" — all entities in today's work log
-- Called by other skills (lib-review, lib-settle) for context
-
-## Three-Layer Query
-
-**Layer 1: Index scan** — "does this entity exist?"
-- `ls _entities/` → match topic against file names + frontmatter aliases
-- Tag community filtering: infer tag → `grep -l "{tag}" _entities/`
-- Tag miss fallback: scan all entity file names + Summary first line
-- Cost: few hundred lines
-
-**Layer 2: Entity page read** — "what is this, what's my relationship"
-- Read matched entity's Summary + Access + Context + Relations
-- Traverse **Tier-1 + Tier-2** Relations to related entities (one hop) — backbone + meaningful context; see [relations-vocabulary.md](references/relations-vocabulary.md)
-- Cost: a few files
-
-**Layer 3: Deep aggregation** — "compile everything for a report"
-- Follow Access as action guide: git log, read storage folder, call external services
-- Expand **all** Relations recursively (incl. Tier-3); on `superseded-by`, redirect to the newer entity ([relations-vocabulary.md](references/relations-vocabulary.md))
-- **Fan out** — independent reads per source/entity, map-reduce distillation per [skill-conventions.md](references/skill-conventions.md) → Orchestration (read-only ⇒ pure fan-out + reduce, no shared-writer concern). Reduce to a bounded top before composing the report.
-- Cost: many reads + possible external calls
-
-## Depth Selection
-
-AI chooses depth based on intent:
-- "Herdr 是什么" → Layer 2
-- "Frederick 推荐过什么" → Layer 2 + grep 反查
-- "准备 EvoGraph 组会报告" → Layer 3
-- Called by lib-review → Layer 1-2
-
-## Constraints
-
-- Strictly read-only
-- Entity not found → report closest matches
-- When called by another skill, return structured data; when called by user, print narrative
+Load [relations-vocabulary.md](references/relations-vocabulary.md) for edge semantics. Load [source-playbooks.md](references/source-playbooks.md) only for the selected source type. [runtime-schema.md](references/runtime-schema.md) defines CLI and source modes. A single-skill installation requires the shared `mylibrary` runtime.

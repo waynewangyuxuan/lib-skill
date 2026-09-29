@@ -36,12 +36,13 @@ side; the reverse is a `grep`:
 - **Pick the most specific core type that fits; `related-to` is the last resort** — including the mandatory hub-attachment when minting a new entity (see lib-entity Nested Heading Promotion).
 - **Exception:** the lifecycle pair (`supersedes`/`superseded-by`) lives on *both* pages — staleness must show from the old page ("use the newer one") and the new page alike.
 
-## How lib-search traverses (maps to the three query depths)
+## How lib-search traverses
 
-- **Layer 1 (index scan)** — name/tag match; no edge following.
-- **Layer 2 (page read)** — follow **Tier 1 + Tier 2** one hop (backbone + meaningful context).
-- **Layer 3 (deep aggregation)** — expand **all tiers** recursively, incl. Tier-3.
-- On any `superseded-by`, redirect to the newer entity — don't treat the stale page as live context.
+Compare three to five Entity descriptions first. Read selected bodies and at most one relevant typed hop. Tier 1 and Tier 2 edges supply structure and supported context. Tier 3 edges need a question-specific reason.
+
+Before a second hop or broader audit, record the unresolved question, why expansion helps, and its stopping condition. Do not expand every relation recursively. Preserve the existing vocabulary and edge direction. The index includes reverse edges without duplicating stored Relations.
+
+On `superseded-by`, inspect the newer Entity and retain the old page as historical evidence.
 
 ## How lib-review audits
 

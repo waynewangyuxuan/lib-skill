@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mylibrary-tools"
+version = "3.0.0"
+description = "File-backed Event, Entity and Notion tools for MyLibrary"
+requires-python = ">=3.11"
+dependencies = ["PyYAML>=6,<7"]
+
+[project.scripts]
+mylibrary = "mylibrary.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["mylibrary*"]

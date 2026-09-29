@@ -1,55 +1,9 @@
-# Settle Engine — Entity-First Matching + Consumer Execution
+# Event integration reference
 
-## Part 1: Entity Resolution
+Use [consumer-interface.md](consumer-interface.md) for Event outcomes and [runtime-schema.md](runtime-schema.md) for the runnable staging contract.
 
-For each `## heading`, find target entity. Stop at first match.
+The processing key is `(consumer, event_id, revision)`. Read frozen evidence, resolve stable Entities, stage supported replacement files, validate, and apply. A daily heading, Settle Log, copied note, or scanner checkpoint does not establish consumption.
 
-`##` headings are the **settle consumption boundary**. Deeper headings (`###`, `####`) are nested content under the current settle target; do not create separate settle log entries for them. (Nested headings are still entity candidates — but that is lib-entity's job, not settle's. See Part 4.)
+Only successful outcomes backed by the completed apply receipt are terminal. Required evidence gaps and uncertain identities remain pending. Repeated apply returns the existing receipt. Interrupted apply uses `mylibrary recover <run_id>`. Publication retries separately.
 
-**Priority 1 — Wikilink**: Extract `[[target]]` from heading → find matching entity page in `_entities/`. File name match (case-insensitive).
-
-**Priority 2 — Entity aliases**: Check heading text against `aliases:` in entity page frontmatter (case-insensitive substring). Entity file name is implicit alias. Multiple matches → prefer longest alias.
-
-**Priority 3 — Fuzzy**: The agent's judgment against known entity names. Low confidence → unmatched.
-
-**No match** → report for user, don't create files or backlinks.
-
-### From entity to storage folder
-
-Once entity is matched:
-1. Read entity page's `## Access` section
-2. Extract storage folder path (e.g., "Storage folder: EvoGraph/")
-3. If no explicit storage path → infer from entity name (look for matching folder in vault)
-4. If no folder exists → content goes only to entity page Context (no file creation)
-
-## Part 2: Consumer Execution
-
-### Resolve consumer
-Read `settle.consumer` from storage folder's `_folder.compiled.yaml`. Absent → vault default `notes`. No storage folder → skip consumer, entity page update only.
-
-### Consumer: `notes`
-Target path: `settle.target` from config, fallback `日志/{project}-{M-DD}.md`.
-- Multi-dimension: if `settle.dimensions` defined, match content to dimension by context (meeting → Meetings/, experiment → Experiments/, default → Notes/)
-- File doesn't exist → create with frontmatter (`created`, `tags: [settled]`, `source`)
-- File exists → append with `> [!info]- 沉淀自 工作记录 {date}` callout
-- Backlink: `→ 已沉淀到 [[{entity-name}]]`
-
-### Consumer: `feature-room`
-For entities with META/. Triage: spec-worthy → fr-ingest to META (as `state: draft`), always save full section to `notes/{YYYY-MM-DD}-{slug}.md`.
-- Backlink includes both META and notes targets
-
-### Consumer: `skip`
-Do nothing. Report "skipped (consumer: skip)".
-
-### Custom consumer
-Read `## Settle Consumer: {name}` in storage folder's `_folder.md`. Natural language definition = prompt. Can't determine → fall back to parent consumer.
-
-## Part 3: Idempotency
-
-- Primary: `## Settle Log` already has `→ 已沉淀到` matching this section's entity
-- Legacy: section body has inline `→ 已沉淀到`
-- Behavior: skip entirely, no re-copy
-
-## Part 4: Nested Entity Promotion
-
-Nested `###`/links/relevance inside a settled section are entity candidates, but **settle does not mint entities** — it passes the full section body to lib-entity, which owns the promotion rule (heading/name + own external identifier → entity; attach + canonical-name dedup). See lib-entity → Nested Heading Promotion. The parent section's settle backlink is unchanged regardless.
+Existing folder consumer configuration remains compatible. Use it only for explicitly requested legacy note-copy behavior, not as the Event receipt mechanism.

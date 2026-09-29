@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Incremental, read-only Notion scan for MyLibrary. No page content enters the vault."""
+"""Delegate default collection to MyLibrary; retain explicit read-only legacy scanning."""
 
 import argparse
 import ctypes
@@ -318,18 +318,33 @@ def scan(client, state_path, roots, since=None, output_dir=None, now=None):
     return manifest_path
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["scan", "store-token"])
-    parser.add_argument("--state", type=Path, default=DEFAULT_STATE)
-    parser.add_argument("--since", help="ISO-8601 timestamp for an explicit backfill window")
-    parser.add_argument("--output-dir", type=Path)
-    args = parser.parse_args()
+    parser.add_argument("command", nargs="?", default="scan", choices=["scan", "collect", "legacy-scan", "store-token"])
+    parser.add_argument("--refresh", action="store_true", help="Deprecated; every collection already reads configured inputs")
+    parser.add_argument("--state", type=Path, default=DEFAULT_STATE, help="Legacy observation checkpoint only")
+    parser.add_argument("--since", help="Legacy scan ISO-8601 backfill window only")
+    parser.add_argument("--output-dir", type=Path, help="Legacy temporary output only")
+    args = parser.parse_args(argv)
+    if args.command != "legacy-scan" and (args.since or args.output_dir or args.state != DEFAULT_STATE):
+        parser.error("--state, --since, and --output-dir require explicit legacy-scan")
+    if args.command in {"scan", "collect"}:
+        try:
+            from mylibrary.cli import main as runtime_main
+        except ModuleNotFoundError:
+            print("Install the shared runtime with python3 -m pip install -e <lib-skill-repo>.", file=sys.stderr)
+            return 2
+        if args.refresh:
+            print("--refresh is deprecated; every collection already reads configured inputs.", file=sys.stderr)
+        return runtime_main(["collect"])
+    if args.refresh:
+        parser.error("--refresh is available only for shared-runtime collection")
     try:
         if args.command == "store-token":
             keychain_store(sys.stdin.read().strip())
             print("Stored nonempty Notion token in the dedicated macOS Keychain item.")
             return 0
+        print("Legacy read-only scan: its checkpoint records observations, never Event consumption.", file=sys.stderr)
         path = scan(NotionClient(token_from_environment_or_keychain()), args.state, configured_roots(), args.since, args.output_dir)
     except (ScanError, ValueError, json.JSONDecodeError) as error:
         print(f"lib-notion: {error}", file=sys.stderr)

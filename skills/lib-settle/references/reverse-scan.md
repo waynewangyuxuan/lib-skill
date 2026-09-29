@@ -1,4 +1,6 @@
-# Reverse Scan — how Phase 2 finds work that never reached the stream
+# Historical repository scan
+
+These read-only helpers support an explicit historical or repository-source request. Their output is evidence for a bounded capture. They do not establish Event consumption or authorize writes into a daily log. Load this reference only when that source type is needed.
 
 Reverse settle only works if the scan actually sees the work. Four failure modes have each
 silently eaten real days. All four are mechanical, so they live in
@@ -48,15 +50,10 @@ scripts/scan-day.sh 2026-07-06 [vault]   # my commits that day, per repo
 
 ## What stays judgment
 
-The scripts answer *where to look* and *which commits are mine*. They do **not** decide what
-is worth writing down. Distilling a commit range into "what actually happened and why it
-matters", deciding whether it belongs under an existing `##` section or needs a new one, and
-noticing when the repo **contradicts** the work log — that remains the reading in `SKILL.md`
-Phase 2 and the write-side rules in
-[skill-conventions.md](skill-conventions.md).
+The scripts identify repository scope and the user's commits. They do not decide what knowledge to integrate. Preserve full commit IDs and relevant file anchors in a bounded source pack. Capture the selected evidence as an Event, then follow [source-playbooks.md](source-playbooks.md) and [skill-conventions.md](skill-conventions.md).
 
 ## Auditing a past settle
 
 Run the scan across a date range before trusting earlier runs. A day whose Settle Log says
 "no commits" but whose scan disagrees was settled with a blind spot; the honest fix is to
-backfill that day **and say so in its Settle Log**.
+capture the missing evidence and report the historical gap. An old Settle Log is not a consumption receipt.

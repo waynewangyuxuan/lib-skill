@@ -1,76 +1,32 @@
 ---
 name: lib-entity
 description: >
-  Use for MyLibrary entity extraction and management: resolve, create, update,
-  tag, promote, and source-check entities in ~/MyLibrary/_entities. Also use
-  when asked to extract entities, check sources, or after settle/review needs
-  entity graph updates.
+  Resolve and propose MyLibrary Entity identities, descriptions, Context, and
+  typed Relations from frozen Events or sources. Use for entity extraction,
+  entity updates, source checks, and pilot migration.
 ---
 
-# lib-entity — Entity Extraction & Management
+# Resolve and update Entities
 
-Extract, resolve, create, update entities, and check sources. A standalone intelligence that can be invoked by settle, review, or directly.
+Keep the existing Entity registry and ontology. Stable identity is the referent, not the spelling of its latest heading. The existing 107 pages, aliases, body sections, and typed Relations remain compatible.
 
-**Vault**: `~/MyLibrary`
-**Entity registry**: `~/MyLibrary/_entities/`
-**Tag registry**: `~/MyLibrary/_entities/_tags.yaml`
+## Resolve before creating
 
-## Triggers
+1. Run `mylibrary resolve <id-or-ref>` when an ID or mapped Notion page is known.
+2. Otherwise run `mylibrary search <topic> --limit 5`. Compare descriptions, names, and aliases before opening candidate bodies.
+3. Read the selected Summary, Access, Context, and relevant Relations. Use `mylibrary neighbors <id>` for needed typed edges. Record a reason before two-hop expansion.
+4. Reuse the existing Entity when references name the same thing. Ambiguous referents remain `needs_review`. Do not mint a page to avoid resolving a collision.
 
-- "extract entities from {file}" — run on specific file
-- "extract entities today" — run on today's work log
-- "check sources" / "check source {entity}" — check entity Access for changes
-- Called by lib-settle after forward + reverse phases
-- Called by lib-review during audit
+A heading, inline name, or mention is an extraction hint. A stable project, person, artifact, organization, or concept with its own identifier may justify an Entity. Generic headings do not. Attach a new Entity with the most specific supported relation under [relations-vocabulary.md](references/relations-vocabulary.md). Preserve the existing type vocabulary.
 
-## Entity Extraction
+## Propose supported memory
 
-Given content (a file or section), extract and manage entities:
+Load [source-playbooks.md](references/source-playbooks.md) for the current Event, source update, local capture, or repository source. Read exact frozen evidence before writing a claim. A source update does not establish a user decision.
 
-1. **Identify**: Person names, tool/paper/service names, concept terms. Use language signals:
-   - 情感升级词 ("真的很", "无比的") → higher confidence
-   - 桥接信号 ("配合我们的...") → state: active
-   - "我感觉" → concept extraction opportunity
-   - `[[wikilink]]` → confirmed entity, state: active
-   - `###` / deeper headings → candidate entity names when they look like a project, repo, paper, service, person, or concept. Heading level does not matter for extraction; it only affects settle consumption.
-   - Heading + external identifier → high confidence. If a nested heading has a GitHub URL, paper URL, service URL, or local repo path nearby, create or resolve an entity even if the parent `##` section belongs to another entity. Example: `### Vibe-Trading` with `https://github.com/HKUDS/Vibe-Trading` under a Moonbow work-log section should become `[[vibe-trading]]`.
-   - Relevance language near a name/link ("高度相关", "重要参考", "prior art", "inspired by", "similar to", "style reference") → promote from incidental mention to captured entity.
+Stage a complete Entity file outside the vault using [runtime-schema.md](references/runtime-schema.md). Keep `Summary`, `Access`, `Context`, and `Relations`. Add stable `id`, concise `description`, and `revision` only to the pilot or explicitly requested migration. Preserve human text and earlier Context evidence. Do not rewrite a Summary merely because a fixed entry count was reached.
 
-2. **Resolve**: `ls _entities/` → check name + aliases (fuzzy). Uncertain → LLM compare Summary (0-2 fallback calls).
+Each Context entry identifies its Event revision, full-artifact SHA-256, existing source anchor, and original source link. State inferences as inferences. Update Relations only when the evidence supports their type and direction.
 
-3. **Create**: Unresolved entities → new entity page in `_entities/` with four sections (Summary, Access, Context, Relations).
+Run validate and apply through the shared runtime. Do not write formal Entity files directly. Source-check failures remain blocked or unreachable; they do not append guessed Context or mark an Event consumed.
 
-4. **Update**: Resolved entities → append Context entry (time-descending). Update Relations per [relations-vocabulary.md](references/relations-vocabulary.md) (core type by family, stored on the passive side).
-
-5. **Tag**: Check `_tags.yaml`. Reuse existing. New tag only if genuinely new community.
-
-6. **Promote**: If entity now has wikilink / multi-day reference / bridge signal → state: active.
-
-## Nested Heading Promotion
-
-Don't stop at `##` headings. A `###`/deeper heading is a candidate entity when it names a thing (project, repo, paper, service, person, concept). Heading level only affects settle *consumption* — never entity *extraction*.
-
-**Create liberally — the cost of an entity is not its count.** A well-connected graph (hub entities + local clusters) absorbs leaf entities at near-zero query cost. The real failure is an **orphan** (no relation) or a **collision** (name clashes with an existing entity), never "too many." So:
-- **Heading/name + its own external identifier** (GitHub/paper/service URL, local repo path) → create/resolve the entity, even if the parent `##` belongs to another entity. (`### Vibe-Trading` + its repo under a Moonbow log ⇒ `[[vibe-trading]]`.)
-- **A name merely mentioned inside another artifact's prose** (no heading, no own identifier) → don't mint standalone; record it as a relation on the host entity.
-- **Generic subheadings** ("组会", "Thinking", "Next steps") → not entities unless they name a stable thing.
-
-**Two mandatory guards (these are the real cost, not count):**
-- **Attach, never orphan.** Every newly minted entity gets a relation back to its parent hub — use the **most specific core type that fits** (a Tier-1 `part-of`/`uses` if structural; `related-to` only as last resort), per [relations-vocabulary.md](references/relations-vocabulary.md).
-- **Canonical naming + dedup.** Before minting, check the name and all `aliases:` across `_entities/` by *referent, not exact string* (same as lib-review 认知层). Reuse on match; otherwise pick one stable kebab-case canonical name.
-
-## Source Check (absorbed from lib-source)
-
-Check external sources referenced in entity Access sections for changes.
-
-1. Scan `_entities/` for entities with external references in Access, including Notion page URLs.
-2. **Check each source.** Local repo → `git log --since=...`, GitHub URL → `gh api`, service → HTTP HEAD. Notion → use `lib-notion` for a paginated, authenticated content scan; HTTP HEAD cannot detect page edits. Independent broad reads can use the read-side orchestration in [skill-conventions.md](references/skill-conventions.md).
-3. Changes found → single writer appends a Context entry per entity (hold each page's structure; append-only).
-4. Report: changed / clean / unreachable
-
-## Constraints
-
-- Entity count is cheap; orphans and name collisions are not — every new entity must attach to a hub (relation) and pass canonical-name dedup. See Nested Heading Promotion.
-- Entity pages are append-only for Context (never delete existing entries)
-- Summary rewrite: only when context accumulates ~5 new entries
-- Relations: store each edge once on the passive/derivative side, typed per [relations-vocabulary.md](references/relations-vocabulary.md) (reverse via grep; lifecycle pair excepted)
+Load [skill-conventions.md](references/skill-conventions.md) for write boundaries. Single-skill installs require the shared `mylibrary` runtime. Do not remap all legacy Entity types or migrate the full registry without an explicit request.
