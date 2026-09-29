@@ -224,6 +224,17 @@ class SyncTests(unittest.TestCase):
         self.assertEqual(self.client.pages[page]["properties"]["Description"]["rich_text"][0]["text"]["content"], "Human description")
         self.assertEqual(sum(call[0] == "PATCH" and call[1] == "/pages/" + page for call in self.client.calls), 0)
 
+    def test_human_body_deletion_after_lost_response_is_preserved(self):
+        self.entity()
+        self.client.lose_body = True
+        first = self.result()
+        self.assertEqual(first["status"], "retryable")
+        page = first["page_id"]
+        self.client.markdown[page] = ""
+        self.assertEqual(self.result()["status"], "needs_review")
+        self.assertEqual(self.client.markdown[page], "")
+        self.assertEqual(sum(call[0] == "PATCH" and call[1].endswith("/markdown") for call in self.client.calls), 1)
+
     def test_human_body_and_property_edits_survive_retries(self):
         self.entity()
         first = self.result()

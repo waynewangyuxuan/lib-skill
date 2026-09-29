@@ -192,7 +192,9 @@ def publish_one(vault, path, client, setup):
         if pending_body:
             acceptable_bodies.add(digest(canonical_markdown(pending_body)))
         acceptable_properties = {previous_properties, ledger.get("initial_properties_sha256"), wanted_properties_hash}
-        if (remote_body and remote_hash not in acceptable_bodies) or property_hash not in acceptable_properties:
+        initial_empty_body = (not remote_body and not pending_body
+                              and ledger.get("create_state") in {"created", "uncertain"})
+        if (remote_hash not in acceptable_bodies and not initial_empty_body) or property_hash not in acceptable_properties:
             with writer_lock(vault):
                 conflict = library._path("_state/notion/conflicts/" + entity_id + "-" + timestamp().replace(":", "") + ".json")
                 atomic_json(conflict, {"page_id": identifier, "markdown": remote_body, "properties": _properties(page),
