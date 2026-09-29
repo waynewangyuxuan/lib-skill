@@ -163,8 +163,11 @@ class StorageTests(unittest.TestCase):
                     "tags: [research]\nstate: active\ncreated: 2026-05-01\n---\n"
                     "# Alpha\n\n## Summary\nNew summary.\n\n## Access\nLocal.\n\n## Context\n- Old context.\n- New.\n\n## Relations\n")
         path, stage = self.stage([self.record()], [("_entities/alpha.md", migrated)])
-        with self.assertRaisesRegex(ValueError, "aliases.*reading.*Old summary.*uses:: \\[\\[Beta\\]\\]"):
+        with self.assertRaises(ValueError) as caught:
             self.library.validate(path)
+        for loss in ("aliases", "tags: reading", "Old summary.", "- uses:: [[Beta]]"):
+            self.assertIn(loss, str(caught.exception))
+        self.assertNotIn("state", str(caught.exception))
         stage["files"][0]["drops"] = [{"item": item, "reason": "superseded in review"} for item in
                                       ("aliases", "tags: reading", "Old summary.", "- uses:: [[Beta]]")]
         atomic_json(path, stage)
@@ -349,7 +352,9 @@ class StorageTests(unittest.TestCase):
         target = self.vault / "_entities/legacy.md"
         target.parent.mkdir()
         target.write_text("---\naliases: [Legacy]\n---\n## Summary\nOlder.\n## Access\nLocal.\n## Context\nHistorical context.\n## Relations\n")
-        path, stage = self.stage([], [("_entities/legacy.md", entity("Legacy", "ent_legacy", history="Historical context.\n"))])
+        migrated = entity("Legacy", "ent_legacy", history="Historical context.\n").replace(
+            "revision: 1\n", "revision: 1\naliases: [Legacy]\n").replace("Summary.", "Older.")
+        path, stage = self.stage([], [("_entities/legacy.md", migrated)])
         with self.assertRaisesRegex(ValueError, "migration"):
             self.library.validate(path)
         stage["purpose"] = "migration"

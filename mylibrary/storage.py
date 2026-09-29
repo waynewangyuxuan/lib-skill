@@ -127,6 +127,20 @@ def _context(content):
     return match.group(1).strip() if match else ""
 
 
+def _losses(previous, current):
+    split = lambda text: _frontmatter(text) if text.startswith("---") else ({}, text)
+    (before, before_body), (after, after_body) = split(previous), split(current)
+    lost = []
+    for key, value in before.items():
+        if key not in after:
+            lost.append(str(key))
+        elif isinstance(value, list):
+            kept = after[key] if isinstance(after[key], list) else [after[key]]
+            lost += [f"{key}: {item}" for item in value if item not in kept]
+    kept = {line.strip() for line in after_body.splitlines()}
+    return lost + [line.strip() for line in before_body.splitlines() if line.strip() and line.strip() not in kept]
+
+
 def _safe_raw(value):
     if isinstance(value, dict):
         return {key: _safe_raw(item) for key, item in value.items()
@@ -489,6 +503,10 @@ class Library:
             history = _context(previous_text)
             if history and history not in _context(text):
                 raise ValueError("Prior Context evidence must be preserved")
+            declared = {drop.get("item") for drop in item.get("drops", []) if str(drop.get("reason", "")).strip()}
+            missing = [loss for loss in _losses(previous_text, text) if loss not in declared] if previous_text else []
+            if missing:
+                raise ValueError("Entity write drops information without a declared reason: " + "; ".join(missing))
             outputs[path] = dict(item, path=path, after_sha256=digest(staged))
             output_fields[path] = fields
         global_ids = {}

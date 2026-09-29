@@ -77,6 +77,8 @@ An evidence reference has `path`, `sha256`, and `anchor`. Its hash covers the ex
 
 Each `integrated` outcome includes evidence from its own Event revision's `frozen_hashes`. References to other Events alone are insufficient. If that Event has partial coverage, include a nonempty `coverage_ack` explaining why the missing material cannot change this conclusion. Without that explanation, validation rejects integration. If the gap affects the conclusion, use `blocked` instead.
 
+A staged replacement keeps every earlier frontmatter field, every earlier list value, and every earlier nonempty body line. To remove or rewrite one, add `"drops": [{"item": "<field>" | "<field>: <value>" | "<exact line>", "reason": "<why>"}]` to that file entry. Validation names each undeclared loss and rejects the write. Changing a scalar value such as `state` is an update, not a loss.
+
 Pilot bootstrap without Event inputs uses `purpose: "migration"`. Reconciliation of an already consumed revision requires `prior_receipt_sha256` and nonempty `reconciliation`. Neither option authorizes full historical migration.
 
 ## Apply and recovery

@@ -23,10 +23,10 @@ A heading, inline name, or mention is an extraction hint. A stable project, pers
 
 Load [source-playbooks.md](references/source-playbooks.md) for the current Event, source update, local capture, or repository source. Read exact frozen evidence before writing a claim. A source update does not establish a user decision.
 
-Stage a complete Entity file outside the vault using [runtime-schema.md](references/runtime-schema.md). Keep `Summary`, `Access`, `Context`, and `Relations`. Add stable `id`, concise `description`, and `revision` only to the pilot or explicitly requested migration. Preserve human text and earlier Context evidence. Do not rewrite a Summary merely because a fixed entry count was reached.
+Stage a complete Entity file outside the vault using [runtime-schema.md](references/runtime-schema.md). Keep `Summary`, `Access`, `Context`, and `Relations`. When an integrated outcome writes a legacy Entity, add stable `id`, concise `description`, and `revision: 1` in the same proposal. Do not migrate Entities that no Event touches unless Wayne asks. Preserve human text and earlier Context evidence. Do not rewrite a Summary merely because a fixed entry count was reached.
 
 Each Context entry identifies its Event revision, full-artifact SHA-256, existing source anchor, and original source link. State inferences as inferences. Update Relations only when the evidence supports their type and direction.
 
 Run validate and apply through the shared runtime. Do not write formal Entity files directly. Source-check failures remain blocked or unreachable; they do not append guessed Context or mark an Event consumed.
 
-Load [skill-conventions.md](references/skill-conventions.md) for write boundaries. Single-skill installs require the shared `mylibrary` runtime. Do not remap all legacy Entity types or migrate the full registry without an explicit request.
+Load [skill-conventions.md](references/skill-conventions.md) for write boundaries. Single-skill installs require the shared `mylibrary` runtime. Do not remap all legacy Entity types or migrate untouched Entities without an explicit request.
