@@ -92,7 +92,7 @@ def _entity_lock(vault, entity_id):
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", entity_id):
         raise ValueError("Invalid Entity ID")
     directory = Library(vault)._path("_state/notion/publication")
-    with writer_lock(vault):
+    with writer_lock(vault, wait_seconds=30):
         directory.mkdir(parents=True, exist_ok=True)
         descriptor = os.open(directory / (entity_id + ".lock"), os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
     try:
@@ -146,7 +146,7 @@ def publish_one(vault, path, client, setup):
         def save(**values):
             nonlocal ledger
             ledger = dict(ledger, entity_id=entity_id, checked_at=timestamp(), **values)
-            with writer_lock(vault):
+            with writer_lock(vault, wait_seconds=30):
                 atomic_json(ledger_path, ledger)
             return ledger
 
@@ -177,7 +177,7 @@ def publish_one(vault, path, client, setup):
             identifier = created["id"]
             save(create_state="created", page_id=identifier)
         if not mapped:
-            with writer_lock(vault):
+            with writer_lock(vault, wait_seconds=30):
                 mappings = read_json(map_path) if map_path.exists() else {}
                 if entity_id in mappings and mappings[entity_id]["page_id"] != identifier:
                     raise NotionError("Concurrent Entity mapping conflict")
@@ -195,7 +195,7 @@ def publish_one(vault, path, client, setup):
         initial_empty_body = (not remote_body and not pending_body
                               and ledger.get("create_state") in {"created", "uncertain"})
         if (remote_hash not in acceptable_bodies and not initial_empty_body) or property_hash not in acceptable_properties:
-            with writer_lock(vault):
+            with writer_lock(vault, wait_seconds=30):
                 conflict = library._path("_state/notion/conflicts/" + entity_id + "-" + timestamp().replace(":", "") + ".json")
                 atomic_json(conflict, {"page_id": identifier, "markdown": remote_body, "properties": _properties(page),
                                        "expected_remote_sha256": previous_remote, "local_sha256": digest(path)})
@@ -209,7 +209,7 @@ def publish_one(vault, path, client, setup):
                   "before_properties_sha256": property_hash,
                   "prepared_at": timestamp()}
         intent_path = library._path("_state/notion/publication/intents/" + entity_id + "-" + payload_hash + ".json")
-        with writer_lock(vault):
+        with writer_lock(vault, wait_seconds=30):
             if not intent_path.exists():
                 atomic_json(intent_path, intent)
         save(status="pending", page_id=identifier, target_hash=payload_hash, local_sha256=local_sha,
@@ -265,6 +265,6 @@ def publish(vault, entity_ids=None, client=None):
         except (ValueError, NotionError, BlockingIOError) as error:
             results.append({"path": str(path.relative_to(vault)), "status": "blocked", "reason": str(error)})
     report = {"checked_at": timestamp(), "results": results}
-    with writer_lock(vault):
+    with writer_lock(vault, wait_seconds=30):
         atomic_json(Library(vault)._path("_state/notion/last-publish.json"), report)
     return report
