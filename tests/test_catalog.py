@@ -133,6 +133,9 @@ class CatalogTests(unittest.TestCase):
         both = search(self.vault, "orchid protocol", scope="all")
         self.assertEqual({row["event_id"] for row in both}, {event["event_id"], page["event_id"]})
         self.assertEqual(search(self.vault, "orchid protocol", scope=["ent_alpha"]), [])
+        self.entity("beta.md", entity_id="ent_beta", name="Beta", description="A protocol about the orchid garden")
+        ranked = search(self.vault, "orchid protocol")
+        self.assertEqual([row["kind"] for row in ranked], ["event", "entity"])
 
     def test_legacy_page_remains_searchable_with_explicit_marker(self):
         self.entity("old-tool.md", name="Old Tool", aliases=("Old Alias",),

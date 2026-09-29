@@ -488,6 +488,35 @@ def _score(item: dict, query: str) -> tuple[int, list[str]]:
     return 0, []
 
 
+def _event_hits(vault: Path, query: str, kinds: set[str]) -> list:
+    tokens, phrase = _tokens(query), _normalize(query)
+    from .storage import Library
+    root = vault / "_events"
+    if not tokens or not kinds or not root.exists():
+        return []
+    pending = {(item["event_id"], item["revision"]) for item in Library(vault).pending()}
+    hits = []
+    for path in sorted(root.glob("*/event.json")):
+        event = json.loads(path.read_text(encoding="utf-8"))
+        if event.get("input_kind") not in kinds:
+            continue
+        body = vault / event["body_path"]
+        lines = body.read_text(encoding="utf-8").splitlines() if body.is_file() else []
+        text = _normalize(event.get("name", "") + "\n" + "\n".join(lines))
+        if not all(token in text for token in tokens):
+            continue
+        line = next((number for number, value in enumerate(lines, 1)
+                     if any(token in _normalize(value) for token in tokens)), None)
+        score = (500 if phrase in text else 200) + sum(text.count(token) for token in tokens)
+        hits.append((score, {
+            "kind": "event" if event["input_kind"] == "event" else "source",
+            "event_id": event["event_id"], "revision": event["revision"], "name": event.get("name", ""),
+            "path": event["body_path"], "line": line, "snippet": lines[line - 1].strip()[:200] if line else "",
+            "source_url": event.get("source_url"),
+            "settled": event.get("readiness") == "ready" and (event["event_id"], event["revision"]) not in pending}))
+    return hits
+
+
 def search(vault: Path, query, limit: int = 5, scope=None) -> list:
     if type(limit) is not int or not 1 <= limit <= 5:
         raise CatalogError("limit must be between 1 and 5")
@@ -512,13 +541,14 @@ def search(vault: Path, query, limit: int = 5, scope=None) -> list:
             if tokens and all(token in normalized for token in tokens):
                 scored.append((100 + sum(normalized.count(token) for token in tokens),
                                item, ["full_text"] ))
+    named = "personal" if scope is None else str(scope) if isinstance(scope, (str, Path)) else ""
+    selected = {"personal": {"event"}, "sources": {"source_update"}, "all": {"event", "source_update"}}.get(named, set())
+    scored = [(score, dict(_public(item), kind="entity"), reasons) for score, item, reasons in scored]
+    scored += [(score, hit, ["full_text"]) for score, hit in _event_hits(vault, query, selected)]
     scored.sort(key=lambda row: (-row[0], _normalize(row[1]["name"]), row[1]["path"]))
-    result = []
-    for score, item, reasons in scored[:limit]:
-        result.append(dict(_public(item), score=score, match_reasons=reasons,
-                           hard_match=bool({"stable_id", "notion_page_id", "name", "alias"}
-                                           & set(reasons))))
-    return result
+    return [dict(item, score=score, match_reasons=reasons,
+                 hard_match=bool({"stable_id", "notion_page_id", "name", "alias"} & set(reasons)))
+            for score, item, reasons in scored[:limit]]
 
 
 def neighbors(vault: Path, entity_id, predicate=None, direction: str = "both") -> list:
