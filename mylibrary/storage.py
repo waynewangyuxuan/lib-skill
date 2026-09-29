@@ -337,6 +337,27 @@ class Library:
             raise ValueError("Final consumer receipt is corrupt or inconsistent")
         return value
 
+    def activity(self, consumer="settle"):
+        found = {}
+        root = self._path(f"_state/consumption/{_slug(consumer)}")
+        for pointer in sorted(root.glob("*/*.json")) if root.exists() else []:
+            event_id, revision = pointer.parent.name, int(pointer.stem)
+            completed = self._completed(consumer, event_id, revision)
+            if completed is None:
+                continue
+            receipt = read_json(self._path(completed["receipt_path"]))
+            if receipt["outcome"] != "integrated":
+                continue
+            event = read_json(self._path(f"_events/{event_id}/revisions/{revision}/event.json"))
+            raw_path = event.get("raw_path") and self._path(event["raw_path"])
+            raw = read_json(raw_path) if raw_path and raw_path.is_file() else {}
+            day = (event.get("occurred_at") or raw.get("page", {}).get("created_time") or event["collected_at"])[:10]
+            for entity_id in receipt.get("entity_ids", []):
+                events, last = found.get(entity_id, (set(), day))
+                found[entity_id] = (events | {event_id}, max(last, day))
+        return {entity_id: {"event_count": len(events), "last_event": last}
+                for entity_id, (events, last) in sorted(found.items())}
+
     def pending(self, consumer="settle"):
         _slug(consumer)
         root = self._path("_events")

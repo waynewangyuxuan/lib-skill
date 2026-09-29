@@ -447,7 +447,9 @@ def _setup(vault, plan, client=None):
     schemas = {"events": dict(basics, Occurred={"type": "date", "date": {}}), "pages": basics,
                "entities": {"Name": basics["Name"], "Entity ID": {"type": "rich_text", "rich_text": {}},
                             "Description": {"type": "rich_text", "rich_text": {}}, "Type": {"type": "select", "select": {}},
-                            "Published Revision": {"type": "number", "number": {}}, "Published At": {"type": "date", "date": {}}}}
+                            "Published Revision": {"type": "number", "number": {}}, "Published At": {"type": "date", "date": {}},
+                            "Event Count": {"type": "number", "number": {}}, "Last Event": {"type": "date", "date": {}},
+                            "Days Idle": {"type": "formula", "formula": {"expression": 'dateBetween(now(), prop("Last Event"), "days")'}}}}
     for name, schema in schemas.items():
         database = create(name, "/databases", {"parent": {"type": "page_id", "page_id": main_id},
                          "title": [rich(name.title())], "is_inline": False, "initial_data_source": {"properties": schema}})
@@ -455,6 +457,10 @@ def _setup(vault, plan, client=None):
         if len(data_sources) != 1:
             raise NotionError("New database did not return one data source")
         source = client.request("GET", "/data_sources/" + data_sources[0]["id"])
+        missing = {label: value for label, value in schema.items() if label not in source.get("properties", {})}
+        if missing:
+            client.request("PATCH", "/data_sources/" + source["id"], {"properties": missing})
+            source = client.request("GET", "/data_sources/" + source["id"])
         for label, expected in schema.items():
             if source.get("properties", {}).get(label, {}).get("type") != expected["type"]:
                 raise NotionError("Existing setup data source schema differs: " + name + "/" + label)
@@ -480,6 +486,25 @@ def _setup(vault, plan, client=None):
             state.update(read_json(path))
             state["resources"][name]["view_id"] = view["id"]
             atomic_json(path, state)
+    events, entities = state["resources"]["events"], state["resources"]["entities"]
+    charts = {"events_this_week": (events, "Events this week", {"chart_type": "number", "value": {"aggregator": "count"}},
+                                   {"timestamp": "created_time", "created_time": {"this_week": {}}}),
+              "events_per_week": (events, "Events per week", {"chart_type": "column", "y_axis": {"aggregator": "count"},
+                                  "x_axis": {"type": "created_time", "property_id": events["properties"]["Created"],
+                                             "group_by": "week", "start_day_of_week": 1, "sort": {"type": "ascending"}}}, None),
+              "entities_active": (entities, "Most active Entities", {"chart_type": "bar", "x_axis_property_id": "title",
+                                  "y_axis_property_id": entities["properties"]["Event Count"], "sort": "y_descending"},
+                                  {"property": "Event Count", "number": {"greater_than": 0}}),
+              "entities_by_type": (entities, "Entities by Type", {"chart_type": "donut", "y_axis": {"aggregator": "count"},
+                                   "x_axis": {"type": "select", "property_id": entities["properties"]["Type"],
+                                              "sort": {"type": "ascending"}}}, None)}
+    for key, (resource, chart_name, configuration, chart_filter) in charts.items():
+        payload = {"data_source_id": resource["data_source_id"], "name": chart_name, "type": "chart",
+                   "create_database": {"parent": {"type": "page_id", "page_id": entities_page["id"]}},
+                   "configuration": dict(configuration, type="chart")}
+        if chart_filter:
+            payload["filter"] = chart_filter
+        create("chart_" + key, "/views", payload)
     block = lambda kind, words: {"object": "block", "type": kind, kind: {"rich_text": [rich(words)]}}
     children = [block("heading_1", "New Event"), block("paragraph", "写下一条想法、进展或决定。无需填写项目。"),
                 {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [rich("打开 Events →", state["resources"]["events"]["url"])]}},
@@ -491,6 +516,6 @@ def _setup(vault, plan, client=None):
         state.update(read_json(path))
         state["status_block_id"] = layout["results"][-1]["id"]
         state["status"] = "api_ready_needs_ui"
-        state["ui_required"] = plan["ui_required"]
+        state.setdefault("ui_required", plan["ui_required"])
         atomic_json(path, state)
     return state

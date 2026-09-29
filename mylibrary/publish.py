@@ -13,6 +13,9 @@ from .storage import Library, atomic_json, digest, read_json, timestamp, writer_
 from .sync import config, notion_id, page_url, workspace
 
 MAP = "_state/notion/entity-map.json"
+TITLE_PREFIX = "ENT "
+IDENTITY = ("Name", "Entity ID", "Description", "Type", "Published Revision")
+ACTIVITY = ("Event Count", "Last Event")
 
 
 def canonical_markdown(value):
@@ -32,11 +35,13 @@ def _value(page, label):
         return "".join(item.get("plain_text", item.get("text", {}).get("content", "")) for item in property.get(kind, []))
     if kind == "select":
         return (property.get("select") or {}).get("name")
+    if kind == "date":
+        return (property.get("date") or {}).get("start")
     return property.get(kind)
 
 
-def _properties(page):
-    return {label: _value(page, label) for label in ("Name", "Entity ID", "Description", "Type", "Published Revision")}
+def _properties(page, labels=IDENTITY):
+    return {label: _value(page, label) for label in labels}
 
 
 def _chunks(value):
@@ -120,7 +125,7 @@ def _read_remote(client, identifier, source, entity_id):
     return page, body, digest(body), digest(json.dumps(_properties(page), sort_keys=True, ensure_ascii=False))
 
 
-def publish_one(vault, path, client, setup):
+def publish_one(vault, path, client, setup, activity=None):
     vault, path = Path(vault).resolve(), Path(path)
     if not path.is_symlink():
         path = path.resolve()
@@ -138,12 +143,15 @@ def publish_one(vault, path, client, setup):
         ledger_path = library._path("_state/notion/publication/" + entity_id + ".json")
         ledger = read_json(ledger_path) if ledger_path.exists() else {}
         markdown = render(vault, metadata, body, mappings)
-        wanted = {"Name": metadata["name"], "Entity ID": entity_id, "Description": metadata["description"],
-                  "Type": metadata["type"], "Published Revision": metadata["revision"]}
+        title = str(metadata["name"])
+        wanted = {"Name": title if title.startswith(TITLE_PREFIX) else TITLE_PREFIX + title, "Entity ID": entity_id,
+                  "Description": metadata["description"], "Type": metadata["type"], "Published Revision": metadata["revision"]}
+        stats = (activity or {}).get(entity_id, {})
+        wanted_all = dict(wanted, **{"Event Count": stats.get("event_count", 0), "Last Event": stats.get("last_event")})
         initial_properties_hash = digest(json.dumps(dict(wanted, **{"Published Revision": None}),
                                                   sort_keys=True, ensure_ascii=False))
         wanted_properties_hash = digest(json.dumps(wanted, sort_keys=True, ensure_ascii=False))
-        payload_hash = digest(json.dumps({"markdown": markdown, "properties": wanted}, sort_keys=True, ensure_ascii=False))
+        payload_hash = digest(json.dumps({"markdown": markdown, "properties": wanted_all}, sort_keys=True, ensure_ascii=False))
         mapped = mappings.get(entity_id)
         if mapped and (mapped.get("workspace_id") != setup["workspace_id"] or mapped.get("data_source_id") != source):
             raise NotionError("Entity mapping belongs to another workspace or data source")
@@ -202,7 +210,7 @@ def publish_one(vault, path, client, setup):
                 atomic_json(conflict, {"page_id": identifier, "markdown": remote_body, "properties": _properties(page),
                                        "expected_remote_sha256": previous_remote, "local_sha256": digest(path)})
             return save(status="needs_review", reason="Machine page contains a human or unrecognized edit", conflict_path=str(conflict))
-        if ledger.get("target_hash") == payload_hash and ledger.get("status") == "published" and remote_hash == previous_remote and _properties(page) == wanted:
+        if ledger.get("target_hash") == payload_hash and ledger.get("status") == "published" and remote_hash == previous_remote and _properties(page, IDENTITY + ACTIVITY) == wanted_all:
             return dict(ledger, status="unchanged")
         local_sha = digest(path)
         intent = {"schema_version": 1, "entity_id": entity_id, "page_id": identifier, "target_hash": payload_hash,
@@ -228,10 +236,12 @@ def publish_one(vault, path, client, setup):
             published_at = timestamp()
             properties = {"Name": {"title": _chunks(wanted["Name"])}, "Entity ID": {"rich_text": _chunks(entity_id)},
                           "Description": {"rich_text": _chunks(wanted["Description"])}, "Type": {"select": {"name": wanted["Type"]}},
-                          "Published Revision": {"number": wanted["Published Revision"]}, "Published At": {"date": {"start": published_at}}}
+                          "Published Revision": {"number": wanted["Published Revision"]}, "Published At": {"date": {"start": published_at}},
+                          "Event Count": {"number": wanted_all["Event Count"]},
+                          "Last Event": {"date": {"start": wanted_all["Last Event"]} if wanted_all["Last Event"] else None}}
             client.request("PATCH", "/pages/" + identifier, {"properties": properties})
             checked, checked_body, remote_hash, property_hash = _read_remote(client, identifier, source, entity_id)
-            if checked_body != readback_body or _properties(checked) != wanted or not _value(checked, "Published At"):
+            if checked_body != readback_body or _properties(checked, IDENTITY + ACTIVITY) != wanted_all or not _value(checked, "Published At"):
                 return save(status="needs_review", reason="Final body/property verification failed")
             return save(status="published", published_at=published_at, published_revision=metadata["revision"],
                         remote_sha256=remote_hash, properties_sha256=property_hash, reason="Verified body and properties",
@@ -244,7 +254,7 @@ def publish(vault, entity_ids=None, client=None):
     vault, client = Path(vault).resolve(), client or NotionClient()
     setup = config(vault)
     workspace(client, setup["workspace_id"])
-    results, identities = [], set()
+    results, identities, activity = [], set(), Library(vault).activity()
     selected = None if entity_ids is None else set(entity_ids)
     paths = []
     for path in sorted((vault / "_entities").glob("*.md")):
@@ -263,7 +273,7 @@ def publish(vault, entity_ids=None, client=None):
         raise ValueError("Requested Entity IDs not found: " + ", ".join(sorted(missing)))
     for path in paths:
         try:
-            results.append(publish_one(vault, path, client, setup))
+            results.append(publish_one(vault, path, client, setup, activity))
         except (ValueError, NotionError, BlockingIOError) as error:
             results.append({"path": str(path.relative_to(vault)), "status": "blocked", "reason": str(error)})
     report = {"checked_at": timestamp(), "results": results}
