@@ -1,4 +1,5 @@
 import copy
+import json
 from pathlib import Path
 import re
 import tempfile
@@ -6,8 +7,9 @@ import unittest
 import uuid
 
 from mylibrary.notion import NotionError, UncertainWrite, rich
+from mylibrary import publish as publish_module
 from mylibrary.publish import publish
-from mylibrary.storage import Library, atomic_json, read_json
+from mylibrary.storage import Library, atomic_json, digest, read_json
 from mylibrary.sync import SETUP, collect, setup, source_open
 
 
@@ -95,6 +97,11 @@ class MemoryNotion:
                 self.sources[source] = {"id": source, "properties": props}
                 return {"id": value, "data_sources": [{"id": source}]}
             return {"id": value}
+        if method == "PATCH" and path.startswith("/data_sources/"):
+            source = self.sources[path.split("/")[-1]]
+            for label, prop in payload["properties"].items():
+                source["properties"][label] = dict(prop, id=label)
+            return copy.deepcopy(source)
         if method == "PATCH" and path.endswith("/children"):
             return {"results": [dict(item, id=identifier(self.next_id + index)) for index, item in enumerate(payload["children"])]}
         if method == "PATCH" and path.endswith("/markdown"):
@@ -197,6 +204,32 @@ class SyncTests(unittest.TestCase):
         self.assertEqual(len(creates), 1)
         mapping = read_json(self.vault / "_state/notion/entity-map.json")
         self.assertEqual(mapping["ent_example"]["page_id"], page)
+
+    def test_published_title_is_prefixed_and_carries_activity(self):
+        path = self.entity()
+        first = self.result()
+        page = self.client.pages[first["page_id"]]
+        self.assertEqual(page["properties"]["Name"]["title"][0]["text"]["content"], "ENT Example")
+        self.assertEqual(page["properties"]["Event Count"]["number"], 0)
+        self.assertIsNone(page["properties"]["Last Event"]["date"])
+        self.assertIn("name: Example", path.read_text())
+        self.assertEqual(self.result()["status"], "unchanged")
+
+    def test_page_published_before_prefix_upgrades_without_review(self):
+        self.entity()
+        first = self.result()
+        page = self.client.pages[first["page_id"]]
+        page["properties"]["Name"] = {"type": "title", "title": [rich("Example")]}
+        for label in ("Event Count", "Last Event"):
+            page["properties"].pop(label)
+        ledger_path = self.vault / "_state/notion/publication/ent_example.json"
+        ledger = read_json(ledger_path)
+        ledger["properties_sha256"] = digest(json.dumps(publish_module._properties(page), sort_keys=True, ensure_ascii=False))
+        ledger["target_hash"] = "before-prefix"
+        atomic_json(ledger_path, ledger)
+        again = self.result()
+        self.assertEqual(again["status"], "published")
+        self.assertEqual(page["properties"]["Name"]["title"][0]["text"]["content"], "ENT Example")
 
     def test_lost_create_is_reconciled_once(self):
         self.entity()
@@ -346,6 +379,30 @@ class SetupTests(unittest.TestCase):
             self.assertEqual(one["resources"], two["resources"])
             self.assertEqual(sum(call[0] in {"POST", "PATCH"} for call in client.calls), count)
             self.assertEqual(len(one["resources"]), 5)
+
+    def test_setup_adds_activity_properties_and_charts_to_existing_setup(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            vault = Path(temporary)
+            client = MemoryNotion()
+            parent = client.add_page(50)
+            first = setup(vault, parent, client=client)
+            source = first["resources"]["entities"]["data_source_id"]
+            self.assertEqual(client.sources[source]["properties"]["Days Idle"]["type"], "formula")
+            charts = [call[2]["configuration"]["chart_type"] for call in client.calls
+                      if call[:2] == ("POST", "/views") and call[2]["type"] == "chart"]
+            self.assertEqual(sorted(charts), ["bar", "column", "donut", "number"])
+            for label in ("Event Count", "Last Event", "Days Idle"):
+                client.sources[source]["properties"].pop(label)
+            state = read_json(vault / SETUP)
+            for label in ("Event Count", "Last Event", "Days Idle"):
+                state["resources"]["entities"]["properties"].pop(label)
+            atomic_json(vault / SETUP, state)
+            second = setup(vault, parent, client=client)
+            self.assertEqual(sorted(client.sources[source]["properties"]),
+                             sorted(first["resources"]["entities"]["properties"]))
+            self.assertEqual(second["resources"]["entities"]["properties"], first["resources"]["entities"]["properties"])
+            self.assertEqual(sum(call[:2] == ("POST", "/databases") for call in client.calls), 3)
+            self.assertEqual(sum(call[:2] == ("POST", "/views") for call in client.calls), 7)
 
     def test_setup_lost_create_stops_instead_of_duplicate(self):
         with tempfile.TemporaryDirectory() as temporary:

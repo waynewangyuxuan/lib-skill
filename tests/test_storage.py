@@ -142,6 +142,18 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(len(self.library.pending("review")), 1)
         self.assertIn("_entities/alpha.md", receipt["managed_paths"])
 
+    def test_activity_counts_integrated_events_per_entity(self):
+        first = self.record("one", occurred_at="2026-09-01")
+        path, _ = self.stage([first], [("_entities/alpha.md", entity("Alpha", "ent_alpha", extra="One.\n"))])
+        self.library.apply(path)
+        second = self.record("two", body="Another", occurred_at="2026-09-03T10:00:00Z")
+        path, _ = self.stage([second], [("_entities/alpha.md", entity("Alpha", "ent_alpha", 2, extra="One.\nTwo.\n"))])
+        self.library.apply(path)
+        noise = self.record("three", body="Noise", occurred_at="2026-09-05")
+        path, _ = self.stage([noise], outcome="recorded_only", reason="nothing to add")
+        self.library.apply(path)
+        self.assertEqual(self.library.activity(), {"ent_alpha": {"event_count": 2, "last_event": "2026-09-03"}})
+
     def test_interrupted_multifile_recovery_and_independent_publication(self):
         event = self.record()
         path, stage = self.stage([event], [("_entities/alpha.md", entity("Alpha", "ent_alpha")),
