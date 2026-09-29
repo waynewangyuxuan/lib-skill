@@ -1,9 +1,10 @@
 import unittest
 from io import BytesIO
+import subprocess
 from unittest.mock import patch
 from urllib.error import URLError
 
-from mylibrary.notion import NotionClient, NotionError, UncertainWrite
+from mylibrary.notion import NotionClient, NotionError, UncertainWrite, credential
 
 
 class ScriptedClient(NotionClient):
@@ -17,6 +18,13 @@ class ScriptedClient(NotionClient):
 
 
 class QueryCoverageTests(unittest.TestCase):
+    def test_keychain_timeout_is_an_actionable_notion_failure(self):
+        with patch.dict("mylibrary.notion.os.environ", {}, clear=True), patch("mylibrary.notion.sys.platform", "darwin"), patch(
+            "mylibrary.notion.subprocess.run", side_effect=subprocess.TimeoutExpired("security", 20)
+        ):
+            with self.assertRaisesRegex(NotionError, "credential lookup timed out"):
+                credential()
+
     def test_safe_read_retries_transport_error_but_write_stays_uncertain(self):
         client = NotionClient(token="test")
         with patch("mylibrary.notion.urlopen", side_effect=[URLError("offline"), BytesIO(b'{"ok": true}')]) as request, patch("mylibrary.notion.time.sleep"):

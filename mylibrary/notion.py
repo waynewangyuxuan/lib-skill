@@ -43,11 +43,14 @@ def credential():
     if value:
         return value
     if sys.platform == "darwin":
-        result = subprocess.run(
-            ["/usr/bin/security", "find-generic-password", "-s", KEYCHAIN_SERVICE,
-             "-a", getpass.getuser(), "-w"],
-            capture_output=True, text=True, timeout=20,
-        )
+        try:
+            result = subprocess.run(
+                ["/usr/bin/security", "find-generic-password", "-s", KEYCHAIN_SERVICE,
+                 "-a", getpass.getuser(), "-w"],
+                capture_output=True, text=True, timeout=20,
+            )
+        except subprocess.TimeoutExpired:
+            raise NotionError("Dedicated Notion credential lookup timed out") from None
         if result.returncode == 0 and result.stdout.strip():
             return result.stdout.strip()
     raise NotionError("Dedicated Notion credential unavailable. Supply NOTION_API_KEY securely.")
