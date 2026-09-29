@@ -3,6 +3,8 @@ import os
 from pathlib import Path
 import shutil
 import tempfile
+import threading
+import time
 import unittest
 from unittest.mock import patch
 
@@ -260,6 +262,21 @@ class StorageTests(unittest.TestCase):
             with self.assertRaises(BlockingIOError):
                 with writer_lock(self.vault):
                     pass
+
+    def test_waiting_writer_enters_after_active_writer_releases(self):
+        result = []
+
+        def wait_for_lock():
+            with writer_lock(self.vault, wait_seconds=1):
+                result.append("entered")
+
+        with writer_lock(self.vault):
+            waiter = threading.Thread(target=wait_for_lock)
+            waiter.start()
+            time.sleep(0.05)
+            self.assertTrue(waiter.is_alive())
+        waiter.join(timeout=2)
+        self.assertEqual(result, ["entered"])
 
     def test_receipt_window_crash_stays_pending_until_final_run_receipt(self):
         event = self.record()

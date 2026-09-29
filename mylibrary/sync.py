@@ -338,7 +338,7 @@ def setup(vault, parent=None, dry_run=False, client=None, *, main=None):
         return dict(plan, status="dry_run", remote_writes=0)
     vault = Path(vault).resolve()
     lock_path = Library(vault)._path("_state/notion/setup.lock")
-    with writer_lock(vault):
+    with writer_lock(vault, wait_seconds=30):
         lock_path.parent.mkdir(parents=True, exist_ok=True)
         descriptor = os.open(lock_path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
     try:
@@ -359,7 +359,7 @@ def _setup(vault, plan, client=None):
     if target["kind"] == "existing_main" and title(target_page) != "MyLibrary":
         raise NotionError("Existing Main page must be titled MyLibrary")
     path = Library(vault)._path(SETUP)
-    with writer_lock(vault):
+    with writer_lock(vault, wait_seconds=30):
         state = read_json(path) if path.exists() else {"schema_version": 1, "workspace_id": authenticated,
                 "target": target, "api_version": API_VERSION, "resources": {}, "operations": {}}
         recorded_target = state.get("target") or {"kind": "create_main_under", "page_id": state.get("parent_page_id")}
@@ -369,7 +369,7 @@ def _setup(vault, plan, client=None):
         atomic_json(path, state)
 
     def create(key, endpoint, payload, method="POST"):
-        with writer_lock(vault):
+        with writer_lock(vault, wait_seconds=30):
             state.update(read_json(path))
             prior = state["operations"].get(key)
             if prior:
@@ -392,13 +392,13 @@ def _setup(vault, plan, client=None):
         elif prior:
             raise UncertainWrite("Setup operation needs scoped reconciliation before retry: " + key)
         if result is not None:
-            with writer_lock(vault):
+            with writer_lock(vault, wait_seconds=30):
                 state.update(read_json(path))
                 state["operations"][key] = {"status": "done", "method": method, "endpoint": endpoint,
                                             "payload": payload, "result": result, "adopted_at": timestamp()}
                 atomic_json(path, state)
             return result
-        with writer_lock(vault):
+        with writer_lock(vault, wait_seconds=30):
             state.update(read_json(path))
             state["operations"][key] = {"status": "uncertain", "method": method, "endpoint": endpoint,
                                         "payload": payload, "prepared_at": timestamp()}
@@ -408,12 +408,12 @@ def _setup(vault, plan, client=None):
         except UncertainWrite:
             raise
         except NotionError:
-            with writer_lock(vault):
+            with writer_lock(vault, wait_seconds=30):
                 state.update(read_json(path))
                 state["operations"][key]["status"] = "not_created"
                 atomic_json(path, state)
             raise
-        with writer_lock(vault):
+        with writer_lock(vault, wait_seconds=30):
             state.update(read_json(path))
             state["operations"][key].update(status="done", result=result)
             atomic_json(path, state)
@@ -421,7 +421,7 @@ def _setup(vault, plan, client=None):
 
     if target["kind"] == "existing_main":
         main = {"id": target["page_id"], "url": target_page.get("url", page_url(target["page_id"]))}
-        with writer_lock(vault):
+        with writer_lock(vault, wait_seconds=30):
             state.update(read_json(path))
             prior = state["operations"].get("main")
             if prior and (prior.get("status") != "done" or prior.get("result", {}).get("id") != main["id"]):
@@ -458,7 +458,7 @@ def _setup(vault, plan, client=None):
         for label, expected in schema.items():
             if source.get("properties", {}).get(label, {}).get("type") != expected["type"]:
                 raise NotionError("Existing setup data source schema differs: " + name + "/" + label)
-        with writer_lock(vault):
+        with writer_lock(vault, wait_seconds=30):
             state.update(read_json(path))
             state["resources"][name] = {"database_id": database["id"], "data_source_id": source["id"],
                                         "properties": {label: value["id"] for label, value in source["properties"].items()},
@@ -476,7 +476,7 @@ def _setup(vault, plan, client=None):
         if name != "entities":
             payload["sorts"] = [{"property": resource["properties"]["Created" if name == "events" else "Edited"], "direction": "descending"}]
         view = create("view_" + name, "/views", payload)
-        with writer_lock(vault):
+        with writer_lock(vault, wait_seconds=30):
             state.update(read_json(path))
             state["resources"][name]["view_id"] = view["id"]
             atomic_json(path, state)
@@ -487,7 +487,7 @@ def _setup(vault, plan, client=None):
                 block("paragraph", "这里只收取 Events 和 Pages。主页布局中的文字不会自动成为记录。"),
                 block("paragraph", "本地尚未收取。沉淀由你手动触发。")]
     layout = create("main_layout", f"/blocks/{main_id}/children", {"children": children}, method="PATCH")
-    with writer_lock(vault):
+    with writer_lock(vault, wait_seconds=30):
         state.update(read_json(path))
         state["status_block_id"] = layout["results"][-1]["id"]
         state["status"] = "api_ready_needs_ui"

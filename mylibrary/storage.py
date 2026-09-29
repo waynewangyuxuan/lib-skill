@@ -10,6 +10,7 @@ from pathlib import Path
 import re
 import shutil
 import tempfile
+import time
 import uuid
 
 import yaml
@@ -71,7 +72,7 @@ def atomic_json(path, value):
 
 
 @contextmanager
-def writer_lock(vault):
+def writer_lock(vault, wait_seconds=0):
     vault = Path(vault).resolve()
     state = vault / "_state"
     if state.is_symlink():
@@ -89,7 +90,16 @@ def writer_lock(vault):
     else:
         descriptor = os.open(path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
     try:
-        fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        deadline = time.monotonic() + wait_seconds
+        while True:
+            try:
+                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise
+                time.sleep(min(0.1, remaining))
         yield descriptor
     finally:
         if inherited is None:
