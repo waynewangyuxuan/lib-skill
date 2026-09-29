@@ -14,7 +14,9 @@ from mylibrary.sync import SETUP, collect, setup, source_open
 def notion_normalized(markdown):
     markdown = re.sub(r"\n{2,}", "\n", markdown)
     markdown = re.sub(r"(https://app\.notion\.com/p/)[^)\s]*-([0-9a-f]{32})", r"\1\2", markdown)
-    return re.sub(r"(?<![\w/`\[])(\w+\.md)(?![\w`\]])", r"[\1](http://\1)", markdown)
+    parts = markdown.split("`")
+    parts[::2] = [re.sub(r"(?<![\w\[])(\w+\.md)(?![\w\]])", r"[\1](http://\1)", part) for part in parts[::2]]
+    return "`".join(parts)
 
 
 def identifier(number):

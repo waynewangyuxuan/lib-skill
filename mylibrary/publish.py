@@ -20,6 +20,11 @@ def canonical_markdown(value):
     return re.sub(r"\n{3,}", "\n\n", "\n".join(line.rstrip() for line in value.replace("\r\n", "\n").splitlines())).strip()
 
 
+def _text(markdown):
+    markdown = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", markdown)
+    return re.sub(r"[\s*`\\]", "", markdown)
+
+
 def _value(page, label):
     property = page.get("properties", {}).get(label, {})
     kind = property.get("type")
@@ -69,7 +74,7 @@ def render(vault, metadata, body, mappings):
                 original = read_json(event_path).get("source_url")
                 if original and original.startswith("https://"):
                     return f"[{label}]({original})"
-        return label + "（仅本地可用）"
+        return ("`" + label + "`" if "/" in label or "." in label else label) + "（仅本地可用）"
 
     sections = {}
     for match in re.finditer(r"^## (Summary|Context|Relations|Access)\s*\n(.*?)(?=^## |\Z)", body, re.M | re.S):
@@ -184,17 +189,14 @@ def publish_one(vault, path, client, setup):
                 mappings[entity_id] = {"page_id": identifier, "workspace_id": setup["workspace_id"], "data_source_id": source}
                 atomic_json(map_path, mappings)
         page, remote_body, remote_hash, property_hash = _read_remote(client, identifier, source, entity_id)
-        expected_body_hash = digest(markdown)
         previous_remote = ledger.get("remote_sha256")
         previous_properties = ledger.get("properties_sha256")
         pending_body = ledger.get("desired_markdown")
-        acceptable_bodies = {previous_remote, expected_body_hash}
-        if pending_body:
-            acceptable_bodies.add(digest(canonical_markdown(pending_body)))
+        ours = remote_hash == previous_remote or _text(remote_body) in {_text(markdown), _text(pending_body or markdown)}
         acceptable_properties = {previous_properties, ledger.get("initial_properties_sha256"), wanted_properties_hash}
         initial_empty_body = (not remote_body and not pending_body
                               and ledger.get("create_state") in {"created", "uncertain"})
-        if (remote_hash not in acceptable_bodies and not initial_empty_body) or property_hash not in acceptable_properties:
+        if (not ours and not initial_empty_body) or property_hash not in acceptable_properties:
             with writer_lock(vault, wait_seconds=30):
                 conflict = library._path("_state/notion/conflicts/" + entity_id + "-" + timestamp().replace(":", "") + ".json")
                 atomic_json(conflict, {"page_id": identifier, "markdown": remote_body, "properties": _properties(page),
@@ -215,13 +217,13 @@ def publish_one(vault, path, client, setup):
         save(status="pending", page_id=identifier, target_hash=payload_hash, local_sha256=local_sha,
              desired_markdown=markdown, intent_path=str(intent_path.relative_to(vault)))
         try:
-            if remote_hash != expected_body_hash:
+            if _text(remote_body) != _text(markdown):
                 response = client.request("PATCH", "/pages/" + identifier + "/markdown",
                       {"type": "replace_content", "replace_content": {"new_str": markdown}, "allow_async": False})
                 if response.get("object") == "async_task":
                     return save(status="pending_async", reason="Await readback; asynchronous acceptance is not completion")
             _, readback_body, _, _ = _read_remote(client, identifier, source, entity_id)
-            if digest(readback_body) != expected_body_hash:
+            if _text(readback_body) != _text(markdown):
                 return save(status="needs_review", reason="Readback differs from the desired snapshot", observed_markdown=readback_body)
             published_at = timestamp()
             properties = {"Name": {"title": _chunks(wanted["Name"])}, "Entity ID": {"rich_text": _chunks(entity_id)},
