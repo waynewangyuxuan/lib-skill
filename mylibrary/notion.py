@@ -86,6 +86,9 @@ class NotionClient:
                         raise UncertainWrite(f"Notion {method} {path}: HTTP {error.code}; reconcile before retry") from None
                 raise NotionError(f"Notion {method} {path}: HTTP {error.code}") from None
             except (URLError, TimeoutError, json.JSONDecodeError):
+                if safe and attempt < 2:
+                    time.sleep(2 ** attempt)
+                    continue
                 cls = NotionError if safe else UncertainWrite
                 raise cls(f"Notion {method} {path}: response unavailable") from None
         raise NotionError("Notion retry limit reached")

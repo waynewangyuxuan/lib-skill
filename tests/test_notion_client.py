@@ -1,6 +1,9 @@
 import unittest
+from io import BytesIO
+from unittest.mock import patch
+from urllib.error import URLError
 
-from mylibrary.notion import NotionClient, NotionError
+from mylibrary.notion import NotionClient, NotionError, UncertainWrite
 
 
 class ScriptedClient(NotionClient):
@@ -14,6 +17,16 @@ class ScriptedClient(NotionClient):
 
 
 class QueryCoverageTests(unittest.TestCase):
+    def test_safe_read_retries_transport_error_but_write_stays_uncertain(self):
+        client = NotionClient(token="test")
+        with patch("mylibrary.notion.urlopen", side_effect=[URLError("offline"), BytesIO(b'{"ok": true}')]) as request, patch("mylibrary.notion.time.sleep"):
+            self.assertEqual(client.request("GET", "/users/me"), {"ok": True})
+            self.assertEqual(request.call_count, 2)
+        with patch("mylibrary.notion.urlopen", side_effect=URLError("offline")) as request:
+            with self.assertRaises(UncertainWrite):
+                client.request("POST", "/databases", {"title": []})
+            self.assertEqual(request.call_count, 1)
+
     def test_complete_data_source_query_reads_every_page(self):
         client = ScriptedClient([
             {"results": [{"id": "event-a"}], "has_more": True, "next_cursor": "after-a"},
