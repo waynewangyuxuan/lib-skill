@@ -154,6 +154,22 @@ class StorageTests(unittest.TestCase):
         self.library.apply(path)
         self.assertEqual(self.library.activity(), {"ent_alpha": {"event_count": 2, "last_event": "2026-09-03"}})
 
+    def test_migration_cannot_silently_drop_fields_values_or_lines(self):
+        legacy = ("---\ntype: artifact\ntags: [research, reading]\naliases: [Alpha]\nstate: captured\ncreated: 2026-05-01\n---\n"
+                  "# Alpha\n\n## Summary\nOld summary.\n\n## Access\nLocal.\n\n## Context\n- Old context.\n\n## Relations\n- uses:: [[Beta]]\n")
+        (self.vault / "_entities").mkdir(exist_ok=True)
+        (self.vault / "_entities/alpha.md").write_text(legacy)
+        migrated = ("---\nid: ent_alpha\nname: Alpha\ntype: artifact\ndescription: The alpha artifact\nrevision: 1\n"
+                    "tags: [research]\nstate: active\ncreated: 2026-05-01\n---\n"
+                    "# Alpha\n\n## Summary\nNew summary.\n\n## Access\nLocal.\n\n## Context\n- Old context.\n- New.\n\n## Relations\n")
+        path, stage = self.stage([self.record()], [("_entities/alpha.md", migrated)])
+        with self.assertRaisesRegex(ValueError, "aliases.*reading.*Old summary.*uses:: \\[\\[Beta\\]\\]"):
+            self.library.validate(path)
+        stage["files"][0]["drops"] = [{"item": item, "reason": "superseded in review"} for item in
+                                      ("aliases", "tags: reading", "Old summary.", "- uses:: [[Beta]]")]
+        atomic_json(path, stage)
+        self.library.validate(path)
+
     def test_interrupted_multifile_recovery_and_independent_publication(self):
         event = self.record()
         path, stage = self.stage([event], [("_entities/alpha.md", entity("Alpha", "ent_alpha")),
