@@ -7,6 +7,7 @@ import yaml
 
 from mylibrary.catalog import build_index, neighbors, parse_entity, resolve, search
 from mylibrary.publish import publish_one
+from mylibrary.storage import Library
 
 
 class PublisherClient:
@@ -117,6 +118,21 @@ class CatalogTests(unittest.TestCase):
         self.entity("alpha.md", entity_id="ent_alpha", name="Alpha",
                     description="Compiler design notes", summary="Parsing and types.")
         self.assertEqual(search(self.vault, "orchid astronomy"), [])
+
+    def test_unsettled_event_and_page_text_are_searchable_by_scope(self):
+        self.entity("alpha.md", entity_id="ent_alpha", name="Alpha")
+        library = Library(self.vault)
+        event = library.record("notion", "w", "p1", "First line\nThe orchid protocol ships Friday", name="note")
+        page = library.record("notion", "w", "p2", "Orchid protocol reference manual", name="Manual",
+                              input_kind="source_update")
+        personal = search(self.vault, "orchid protocol")
+        self.assertEqual([(row["kind"], row["event_id"], row["line"], row["snippet"], row["settled"]) for row in personal],
+                         [("event", event["event_id"], 2, "The orchid protocol ships Friday", False)])
+        sources = search(self.vault, "orchid protocol", scope="sources")
+        self.assertEqual([(row["kind"], row["event_id"]) for row in sources], [("source", page["event_id"])])
+        both = search(self.vault, "orchid protocol", scope="all")
+        self.assertEqual({row["event_id"] for row in both}, {event["event_id"], page["event_id"]})
+        self.assertEqual(search(self.vault, "orchid protocol", scope=["ent_alpha"]), [])
 
     def test_legacy_page_remains_searchable_with_explicit_marker(self):
         self.entity("old-tool.md", name="Old Tool", aliases=("Old Alias",),
