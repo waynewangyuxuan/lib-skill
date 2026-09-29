@@ -10,6 +10,7 @@ from mylibrary.notion import NotionError, UncertainWrite, rich
 from mylibrary import publish as publish_module
 from mylibrary.publish import publish
 from mylibrary.storage import Library, atomic_json, digest, read_json
+from mylibrary.catalog import search
 from mylibrary.sync import SETUP, collect, setup, source_open
 
 
@@ -77,6 +78,8 @@ class MemoryNotion:
         if method == "GET" and path.endswith("/markdown"):
             return {"object": "page_markdown", "markdown": self.markdown[path.split("/")[2]], "truncated": False, "unknown_block_ids": []}
         if method == "GET" and path.startswith("/pages/"):
+            if path.split("/")[2] not in self.pages:
+                raise NotionError("Notion GET " + path + ": HTTP 404")
             return copy.deepcopy(self.pages[path.split("/")[2]])
         if method == "POST" and path in {"/pages", "/databases", "/views"}:
             value = identifier(self.next_id)
@@ -157,6 +160,31 @@ class SyncTests(unittest.TestCase):
         self.assertNotIn("X-Amz-Signature", (self.vault / envelope["raw_path"]).read_text())
         self.assertEqual({event["input_kind"] for event in result["pending"]}, {"event", "source_update"})
         self.assertFalse(any(call[1] == "/search" for call in self.client.calls))
+
+    def test_referenced_pages_are_local_sources_not_inputs(self):
+        doc = self.client.add_page(60, source=None, text="Design doc body")
+        self.client.pages[doc]["parent"] = {"type": "page_id", "page_id": identifier(1)}
+        linked = self.client.add_page(62, source=None, text="Linked notes body")
+        self.client.pages[linked]["parent"] = {"type": "page_id", "page_id": identifier(1)}
+        self.client.add_page(10, text="See the doc ", mention=doc)
+        link = rich("notes", "https://www.notion.so/Notes-" + linked.replace("-", ""))
+        self.client.add_page(12, text="Also ")
+        self.client.blocks[identifier(12)][0]["paragraph"]["rich_text"].append(link)
+        self.client.add_page(14, text="Missing ", mention=identifier(70))
+        result = collect(self.vault, self.client)
+        references = {item["page_id"]: item for item in result["references"]}
+        self.assertEqual({key: item["status"] for key, item in references.items()},
+                         {doc: "snapshotted", linked: "snapshotted", identifier(70): "unavailable"})
+        self.assertEqual(len(result["pending"]), 3)
+        self.assertIn("Design doc body", (self.vault / references[doc]["body_path"]).read_text())
+        self.assertEqual(search(self.vault, "linked notes body", scope="sources")[0]["kind"], "reference")
+        self.assertEqual(search(self.vault, "linked notes body"), [])
+        again = {item["page_id"]: item["status"] for item in collect(self.vault, self.client)["references"]}
+        self.assertEqual(again[doc], "unchanged")
+        self.client.blocks[doc][0]["paragraph"]["rich_text"] = [rich("Design doc revised")]
+        self.client.pages[doc]["last_edited_time"] = "later"
+        third = {item["page_id"]: item for item in collect(self.vault, self.client)["references"]}
+        self.assertEqual((third[doc]["status"], third[doc]["revision"]), ("snapshotted", 2))
 
     def test_empty_new_page_then_edit_and_missing_attachment(self):
         page = self.client.add_page(12, text="")
