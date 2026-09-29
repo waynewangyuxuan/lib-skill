@@ -57,7 +57,9 @@ def parser():
     remote = commands.add_parser("publish")
     remote.add_argument("--entity", action="append", dest="entities")
     provisioning = commands.add_parser("setup", aliases=["notion-setup"])
-    provisioning.add_argument("--parent", required=True)
+    location = provisioning.add_mutually_exclusive_group(required=True)
+    location.add_argument("--parent")
+    location.add_argument("--main")
     provisioning.add_argument("--dry-run", action="store_true")
     commands.add_parser("backup").add_argument("--output", type=Path, required=True)
     return root
@@ -121,7 +123,7 @@ def run(args):
     if name == "publish":
         return publish(args.vault, args.entities)
     if name in {"setup", "notion-setup"}:
-        return setup(args.vault, args.parent, dry_run=args.dry_run)
+        return setup(args.vault, args.parent, dry_run=args.dry_run, main=args.main)
     if name == "backup":
         return library.backup(args.output)
     raise ValueError("Unknown operation")

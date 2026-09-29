@@ -72,4 +72,6 @@ Run `bash scripts/sync-stdlib.sh` after changing shared references. It copies th
 
 The old Notion scanner defaults to the shared collector. Its explicit `legacy-scan` mode remains read-only compatibility with an observation checkpoint. Credential storage retains the dedicated macOS Keychain route. A legacy checkpoint is never an Event consumption receipt.
 
+To use an existing Notion page as the workbench, run `mylibrary setup --main <MyLibrary-page-URL> --dry-run` and then run the same command without `--dry-run`. `--parent` retains its earlier meaning: create a new MyLibrary child under that page. Setup preserves existing Main content and stops on unrelated same-title child collisions.
+
 Report local fixture, live API, Notion UI, phone, and offline verification separately. Neither a successful setup nor a fixture proves a working mobile recording flow.

@@ -274,6 +274,56 @@ class SyncTests(unittest.TestCase):
 
 
 class SetupTests(unittest.TestCase):
+    def test_existing_main_is_adopted_without_a_second_main_page(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            vault = Path(temporary)
+            client = MemoryNotion()
+            main = client.add_page(50)
+            client.pages[main]["parent"] = {"type": "workspace", "workspace": True}
+            client.pages[main]["properties"]["Name"]["title"] = [rich("MyLibrary")]
+            original = copy.deepcopy(client.blocks[main])
+            plan = setup(vault, main=main, dry_run=True, client=client)
+            self.assertEqual(plan["target"], {"kind": "existing_main", "page_id": main})
+            self.assertEqual(client.calls, [])
+            first = setup(vault, main=main, client=client)
+            writes = sum(call[0] in {"POST", "PATCH"} for call in client.calls)
+            second = setup(vault, main=main, client=client)
+            self.assertEqual(first["resources"], second["resources"])
+            self.assertEqual(first["resources"]["main"]["page_id"], main)
+            self.assertEqual(sum(call[:2] == ("POST", "/pages") for call in client.calls), 1)
+            self.assertEqual(sum(call[0] in {"POST", "PATCH"} for call in client.calls), writes)
+            self.assertEqual(client.blocks[main], original)
+
+    def test_existing_main_refuses_unowned_same_title_child(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            vault = Path(temporary)
+            client = MemoryNotion()
+            main = client.add_page(50)
+            client.pages[main]["parent"] = {"type": "workspace", "workspace": True}
+            client.pages[main]["properties"]["Name"]["title"] = [rich("MyLibrary")]
+            client.blocks[main].append({"id": identifier(90), "type": "child_page",
+                                        "child_page": {"title": "Entities"}})
+            with self.assertRaisesRegex(NotionError, "explicit adoption"):
+                setup(vault, main=main, client=client)
+            self.assertEqual(sum(call[:2] == ("POST", "/pages") for call in client.calls), 0)
+
+    def test_uncertain_child_create_never_claims_later_user_child_by_title(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            vault = Path(temporary)
+            client = MemoryNotion()
+            main = client.add_page(50)
+            client.pages[main]["parent"] = {"type": "workspace", "workspace": True}
+            client.pages[main]["properties"]["Name"]["title"] = [rich("MyLibrary")]
+            client.lose_create = True
+            with self.assertRaises(UncertainWrite):
+                setup(vault, main=main, client=client)
+            client.blocks[main].append({"id": identifier(90), "type": "child_page",
+                                        "child_page": {"title": "Entities"}})
+            with self.assertRaisesRegex(NotionError, "explicit adoption"):
+                setup(vault, main=main, client=client)
+            state = read_json(vault / SETUP)
+            self.assertNotIn("entities_page", state["resources"])
+
     def test_dry_run_and_repeat_use_one_resource_set(self):
         with tempfile.TemporaryDirectory() as temporary:
             vault = Path(temporary)

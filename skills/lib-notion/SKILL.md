@@ -13,7 +13,7 @@ Notion Events and Pages are configured input data sources. Local Entity files an
 ## Configure access and scope
 
 1. Keep the existing private credential route. On macOS, run `bash scripts/store-token-macos.sh` from this skill directory. Enter the credential only in its hidden-input terminal. The dedicated Keychain service remains `com.wayne.lib-notion`.
-2. Confirm the intended parent and workspace from actual connected state. Run `mylibrary setup --parent <id> --dry-run`, inspect the result, then run setup for the authorized parent.
+2. Confirm the intended page and workspace from actual connected state. If Wayne supplied an existing MyLibrary page, run `mylibrary setup --main <page URL or ID> --dry-run`, inspect the result, then adopt that exact page. Use `--parent` only when the intent is to create a new MyLibrary child under another page. A dry-run does not check remote access.
 3. Run `mylibrary status` and verify the configured Events, Pages, and Entities mappings. Collection reads the configured input data sources. Do not default to a workspace-wide Search.
 4. Run `mylibrary collect`. Inspect retained source URLs, IDs, snapshots, attachment bytes, and coverage gaps before reporting readiness.
 

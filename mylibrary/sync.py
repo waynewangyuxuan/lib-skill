@@ -319,17 +319,23 @@ def source_open(vault, reference, mode="cache", revision=None, client=None):
             "body_path": str(library._path(source["body_path"])), "coverage": source["coverage"]}
 
 
-def setup_plan(parent):
-    return {"parent_page_id": notion_id(parent), "api_version": API_VERSION,
-            "pages": ["MyLibrary", "Entities"], "collections": ["Events", "Pages", "Entities"],
+def setup_plan(parent=None, *, main=None):
+    if (parent is None) == (main is None):
+        raise ValueError("Choose exactly one Notion --parent or --main page")
+    target = {"kind": "existing_main" if main is not None else "create_main_under",
+              "page_id": notion_id(main if main is not None else parent)}
+    return {"target": target, "api_version": API_VERSION,
+            "pages": ["Entities"] if main is not None else ["MyLibrary", "Entities"],
+            "collections": ["Events", "Pages", "Entities"],
             "views": ["Recent Events", "Recent Pages", "Entities"],
             "ui_required": ["Native New Event button creates and opens an Events page", "Move Recent Events into right column",
                             "Full width and side peek", "Phone order and offline New", "Entity page lock and permissions"]}
 
 
-def setup(vault, parent, dry_run=False, client=None):
+def setup(vault, parent=None, dry_run=False, client=None, *, main=None):
+    plan = setup_plan(parent, main=main)
     if dry_run:
-        return dict(setup_plan(parent), status="dry_run", remote_writes=0)
+        return dict(plan, status="dry_run", remote_writes=0)
     vault = Path(vault).resolve()
     lock_path = Library(vault)._path("_state/notion/setup.lock")
     with writer_lock(vault):
@@ -337,22 +343,29 @@ def setup(vault, parent, dry_run=False, client=None):
         descriptor = os.open(lock_path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
     try:
         fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        return _setup(vault, parent, client=client)
+        return _setup(vault, plan, client=client)
     finally:
         os.close(descriptor)
 
 
-def _setup(vault, parent, client=None):
-    plan = setup_plan(parent)
+def _setup(vault, plan, client=None):
     vault, client = Path(vault).resolve(), client or NotionClient()
     authenticated = workspace(client)
-    client.request("GET", "/pages/" + plan["parent_page_id"])
+    target = plan["target"]
+    target_page = client.request("GET", "/pages/" + target["page_id"])
+    if (not target_page or notion_id(target_page.get("id", "")) != target["page_id"]
+            or target_page.get("archived") or target_page.get("in_trash")):
+        raise NotionError("Selected Notion page is unavailable or archived")
+    if target["kind"] == "existing_main" and title(target_page) != "MyLibrary":
+        raise NotionError("Existing Main page must be titled MyLibrary")
     path = Library(vault)._path(SETUP)
     with writer_lock(vault):
         state = read_json(path) if path.exists() else {"schema_version": 1, "workspace_id": authenticated,
-                "parent_page_id": plan["parent_page_id"], "api_version": API_VERSION, "resources": {}, "operations": {}}
-        if state["workspace_id"] != authenticated or state["parent_page_id"] != plan["parent_page_id"]:
-            raise ValueError("Existing setup belongs to another workspace or parent")
+                "target": target, "api_version": API_VERSION, "resources": {}, "operations": {}}
+        recorded_target = state.get("target") or {"kind": "create_main_under", "page_id": state.get("parent_page_id")}
+        if state["workspace_id"] != authenticated or recorded_target != target:
+            raise ValueError("Existing setup belongs to another workspace or target")
+        state["target"] = target
         atomic_json(path, state)
 
     def create(key, endpoint, payload, method="POST"):
@@ -373,7 +386,7 @@ def _setup(vault, parent, client=None):
             if len(candidates) > 1:
                 raise NotionError("Multiple scoped setup resources match " + key)
             if candidates:
-                result = client.request("GET", endpoint + "/" + candidates[0]["id"])
+                raise NotionError("Existing scoped child needs explicit adoption: " + key)
             elif prior and prior["status"] != "not_created":
                 raise UncertainWrite("Lost setup create has no scoped match; creation was not repeated: " + key)
         elif prior:
@@ -406,13 +419,26 @@ def _setup(vault, parent, client=None):
             atomic_json(path, state)
         return result
 
-    main = create("main", "/pages", {"parent": {"type": "page_id", "page_id": plan["parent_page_id"]},
-                    "properties": {"title": {"type": "title", "title": [rich("MyLibrary")]}}, "icon": {"type": "emoji", "emoji": "📚"}})
+    if target["kind"] == "existing_main":
+        main = {"id": target["page_id"], "url": target_page.get("url", page_url(target["page_id"]))}
+        with writer_lock(vault):
+            state.update(read_json(path))
+            prior = state["operations"].get("main")
+            if prior and (prior.get("status") != "done" or prior.get("result", {}).get("id") != main["id"]):
+                raise NotionError("Existing Main adoption conflicts with setup journal")
+            state["operations"]["main"] = prior or {"status": "done", "mode": "adopted",
+                                                       "result": main, "adopted_at": timestamp()}
+            atomic_json(path, state)
+    else:
+        main = create("main", "/pages", {"parent": {"type": "page_id", "page_id": target["page_id"]},
+                        "properties": {"title": {"type": "title", "title": [rich("MyLibrary")]}},
+                        "icon": {"type": "emoji", "emoji": "📚"}})
     main_id = main["id"]
     current_main = client.request("GET", "/pages/" + main_id)
     actual_parent = current_main.get("parent", {}).get("page_id")
-    if (not actual_parent or notion_id(actual_parent) != plan["parent_page_id"]
-            or current_main.get("archived") or current_main.get("in_trash")):
+    if (current_main.get("archived") or current_main.get("in_trash")
+            or (target["kind"] == "create_main_under"
+                and (not actual_parent or notion_id(actual_parent) != target["page_id"]))):
         raise NotionError("Existing Main page is outside the selected parent or archived")
     entities_page = create("entities_page", "/pages", {"parent": {"type": "page_id", "page_id": main_id},
                           "properties": {"title": {"type": "title", "title": [rich("Entities")]}}})

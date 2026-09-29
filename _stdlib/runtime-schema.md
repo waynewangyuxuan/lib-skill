@@ -112,10 +112,11 @@ mylibrary resolve <ref>
 mylibrary neighbors <id> [--predicate <type>] [--direction incoming|outgoing|both]
 mylibrary source-open <ref> --mode cache|if-stale|live|historical [--revision <revision>]
 mylibrary publish [--entity <id>]
-mylibrary setup --parent <id> [--dry-run]
+mylibrary setup --main <existing-MyLibrary-page-id-or-URL> [--dry-run]
+mylibrary setup --parent <parent-id-or-URL> [--dry-run]
 mylibrary backup --output <path>
 ```
 
-Cache and historical reads use retained snapshots. Notion `if-stale` uses a fresh retained cache for 300 seconds without a network read. An older snapshot triggers a source check. Live reads require access. Setup dry-run renders the proposed parent and layout without remote writes. It does not verify access, Notion UI, or mobile capture. Backup uses a new directory outside the vault with a hash manifest.
+Cache and historical reads use retained snapshots. Notion `if-stale` uses a fresh retained cache for 300 seconds without a network read. An older snapshot triggers a source check. Live reads require access. Setup `--main` adopts the exact existing MyLibrary page; `--parent` creates a new MyLibrary child under another page. Dry-run renders the chosen target and layout without remote writes. It does not verify access, Notion UI, or mobile capture. Backup uses a new directory outside the vault with a hash manifest.
 
 The optional global `--vault <path>` selects a fixture or explicit vault. Search, resolve, and neighbors preserve authoritative knowledge while refreshing rebuildable caches when needed. Every manual collection fully paginates the configured input data sources. It does not use the source-read freshness cache to skip input pages.
