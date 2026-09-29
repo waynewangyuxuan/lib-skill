@@ -1,5 +1,6 @@
 import copy
 from pathlib import Path
+import re
 import tempfile
 import unittest
 import uuid
@@ -8,6 +9,12 @@ from mylibrary.notion import NotionError, UncertainWrite, rich
 from mylibrary.publish import publish
 from mylibrary.storage import Library, atomic_json, read_json
 from mylibrary.sync import SETUP, collect, setup, source_open
+
+
+def notion_normalized(markdown):
+    markdown = re.sub(r"\n{2,}", "\n", markdown)
+    markdown = re.sub(r"(https://app\.notion\.com/p/)[^)\s]*-([0-9a-f]{32})", r"\1\2", markdown)
+    return re.sub(r"(?<![\w/`\[])(\w+\.md)(?![\w`\]])", r"[\1](http://\1)", markdown)
 
 
 def identifier(number):
@@ -90,7 +97,7 @@ class MemoryNotion:
             return {"results": [dict(item, id=identifier(self.next_id + index)) for index, item in enumerate(payload["children"])]}
         if method == "PATCH" and path.endswith("/markdown"):
             value = path.split("/")[2]
-            self.markdown[value] = payload["replace_content"]["new_str"]
+            self.markdown[value] = notion_normalized(payload["replace_content"]["new_str"])
             if self.lose_body:
                 self.lose_body = False
                 raise UncertainWrite("lost body update")
@@ -120,7 +127,7 @@ class SyncTests(unittest.TestCase):
 
     def entity(self, name="Example", revision=1):
         path = self.vault / "_entities/example.md"
-        path.write_text(f"---\nid: ent_example\nname: {name}\ntype: concept\ndescription: A personal example\nrevision: {revision}\n---\n\n## Summary\n\nKnown result\n\n## Access\n\n[[local-note]]\n\n## Context\n\n- First original source\n\n## Relations\n", encoding="utf-8")
+        path.write_text(f"---\nid: ent_example\nname: {name}\ntype: concept\ndescription: A personal example\nrevision: {revision}\n---\n\n## Summary\n\nKnown result\n\n## Access\n\n[[local-note]]\n\n## Context\n\n- First original source [原页](https://app.notion.com/p/Some-Title-3ea5f7692d8980c7ab79cfa09dad5f27), [[_events/evt_local/revisions/1/body.md]]\n\n## Relations\n", encoding="utf-8")
         return path
 
     def result(self):
