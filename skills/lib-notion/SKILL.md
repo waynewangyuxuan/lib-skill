@@ -1,9 +1,9 @@
 ---
 name: lib-notion
 description: >
-  Connect and collect the configured Notion Events database as MyLibrary
+  Connect and collect Notion Events and the watched workspace as MyLibrary
   inputs, retain source evidence, and publish Entity views. Use for Notion
-  setup, collection, source reads, or publication recovery.
+  setup, collection, watch-area scope, source reads, or publication recovery.
 metadata:
   runtime: mylibrary-tools>=3.1.0
 ---
