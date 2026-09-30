@@ -516,6 +516,7 @@ def _setup(vault, plan, client=None):
                             "Description": {"type": "rich_text", "rich_text": {}}, "Type": {"type": "select", "select": {}},
                             "Published Revision": {"type": "number", "number": {}}, "Published At": {"type": "date", "date": {}},
                             "Event Count": {"type": "number", "number": {}}, "Last Event": {"type": "date", "date": {}},
+                            "Tags": {"type": "multi_select", "multi_select": {}}, "State": {"type": "select", "select": {}},
                             "Days Idle": {"type": "formula", "formula": {"expression": 'dateBetween(now(), prop("Last Event"), "days")'}}}}
     for name, schema in schemas.items():
         database = create(name, "/databases", {"parent": {"type": "page_id", "page_id": main_id},

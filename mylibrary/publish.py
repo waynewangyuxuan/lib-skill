@@ -15,7 +15,7 @@ from .sync import config, notion_id, page_url, refresh_status, workspace
 MAP = "_state/notion/entity-map.json"
 TITLE_PREFIX = "ENT "
 IDENTITY = ("Name", "Entity ID", "Description", "Type", "Published Revision")
-ACTIVITY = ("Event Count", "Last Event")
+DERIVED = ("Event Count", "Last Event", "Tags", "State")
 
 
 def canonical_markdown(value):
@@ -51,6 +51,8 @@ def _value(page, label):
         return (property.get("select") or {}).get("name")
     if kind == "date":
         return (property.get("date") or {}).get("start")
+    if kind == "multi_select":
+        return sorted(item["name"] for item in property.get("multi_select", []))
     return property.get(kind)
 
 
@@ -161,7 +163,10 @@ def publish_one(vault, path, client, setup, activity=None):
         wanted = {"Name": title if title.startswith(TITLE_PREFIX) else TITLE_PREFIX + title, "Entity ID": entity_id,
                   "Description": metadata["description"], "Type": metadata["type"], "Published Revision": metadata["revision"]}
         stats = (activity or {}).get(entity_id, {})
-        wanted_all = dict(wanted, **{"Event Count": stats.get("event_count", 0), "Last Event": stats.get("last_event")})
+        tags = metadata.get("tags") or []
+        wanted_all = dict(wanted, **{"Event Count": stats.get("event_count", 0), "Last Event": stats.get("last_event"),
+                                     "Tags": sorted(str(tag) for tag in ([tags] if isinstance(tags, str) else tags)),
+                                     "State": metadata.get("state")})
         initial_properties_hash = digest(json.dumps(dict(wanted, **{"Published Revision": None}),
                                                   sort_keys=True, ensure_ascii=False))
         wanted_properties_hash = digest(json.dumps(wanted, sort_keys=True, ensure_ascii=False))
@@ -227,7 +232,7 @@ def publish_one(vault, path, client, setup, activity=None):
             return save(status="needs_review", reason="Machine page contains a human or unrecognized edit", conflict_path=str(conflict))
         if (ledger.get("target_hash") == payload_hash and ledger.get("status") == "published"
                 and ledger.get("written_sha256") == digest(markdown) and remote_hash == previous_remote
-                and _properties(page, IDENTITY + ACTIVITY) == wanted_all):
+                and _properties(page, IDENTITY + DERIVED) == wanted_all):
             return dict(ledger, status="unchanged")
         local_sha = digest(path)
         intent = {"schema_version": 1, "entity_id": entity_id, "page_id": identifier, "target_hash": payload_hash,
@@ -256,10 +261,12 @@ def publish_one(vault, path, client, setup, activity=None):
                           "Description": {"rich_text": _chunks(wanted["Description"])}, "Type": {"select": {"name": wanted["Type"]}},
                           "Published Revision": {"number": wanted["Published Revision"]}, "Published At": {"date": {"start": published_at}},
                           "Event Count": {"number": wanted_all["Event Count"]},
-                          "Last Event": {"date": {"start": wanted_all["Last Event"]} if wanted_all["Last Event"] else None}}
+                          "Last Event": {"date": {"start": wanted_all["Last Event"]} if wanted_all["Last Event"] else None},
+                          "Tags": {"multi_select": [{"name": tag} for tag in wanted_all["Tags"]]},
+                          "State": {"select": {"name": wanted_all["State"]} if wanted_all["State"] else None}}
             client.request("PATCH", "/pages/" + identifier, {"properties": properties})
             checked, checked_body, remote_hash, property_hash = _read_remote(client, identifier, source, entity_id)
-            if checked_body != readback_body or _properties(checked, IDENTITY + ACTIVITY) != wanted_all or not _value(checked, "Published At"):
+            if checked_body != readback_body or _properties(checked, IDENTITY + DERIVED) != wanted_all or not _value(checked, "Published At"):
                 return save(status="needs_review", reason="Final body/property verification failed")
             return save(status="published", published_at=published_at, published_revision=metadata["revision"],
                         written_sha256=digest(markdown),
