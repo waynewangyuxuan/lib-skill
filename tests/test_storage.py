@@ -173,6 +173,31 @@ class StorageTests(unittest.TestCase):
         atomic_json(path, stage)
         self.library.validate(path)
 
+    def test_worklog_section_is_rebuilt_from_receipts_per_logical_day(self):
+        from mylibrary.worklog import write_worklog
+        day_file = self.vault / "工作记录/September/2026-9-3.md"
+        day_file.parent.mkdir(parents=True)
+        day_file.write_text("---\ndate: 2026-09-03\n---\nMy own notes.\n\n## Settle Log #ai-generated\n→ legacy line\n")
+        first = self.record("one", body="Alpha idea", name="Idea", occurred_at="2026-09-03")
+        path, stage = self.stage([first], [("_entities/alpha.md", entity("Alpha", "ent_alpha", extra="One.\n"))])
+        stage["outcomes"][0]["summary"] = "Added the alpha idea"
+        atomic_json(path, stage)
+        run = self.library.apply(path)["run_id"]
+        noise = self.record("two", body="Noise", name="Scratch", occurred_at="2026-09-04")
+        path, _ = self.stage([noise], outcome="recorded_only", reason="nothing to add")
+        self.library.apply(path)
+        self.record("three", body="Later", name="Waiting", occurred_at="2026-09-03")
+        self.assertEqual(write_worklog(self.vault, run), ["工作记录/September/2026-9-3.md"])
+        text = day_file.read_text()
+        self.assertTrue(text.startswith("---\ndate: 2026-09-03\n---\nMy own notes.\n\n## Settle Log #ai-generated\n→ legacy line\n"))
+        self.assertIn("- Idea · 整合进 [[alpha]] · Added the alpha idea", text)
+        self.assertIn("- Waiting · 未沉淀", text)
+        self.assertNotIn("Scratch", text)
+        self.assertEqual(write_worklog(self.vault, run), ["工作记录/September/2026-9-3.md"])
+        self.assertEqual(day_file.read_text(), text)
+        write_worklog(self.vault)
+        self.assertIn("- Scratch · 只记录 · nothing to add", (self.vault / "工作记录/September/2026-9-4.md").read_text())
+
     def test_interrupted_multifile_recovery_and_independent_publication(self):
         event = self.record()
         path, stage = self.stage([event], [("_entities/alpha.md", entity("Alpha", "ent_alpha")),

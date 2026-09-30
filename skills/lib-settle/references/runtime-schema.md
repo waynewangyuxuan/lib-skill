@@ -75,7 +75,7 @@ Entity frontmatter requires nonempty `id`, `name`, `type`, and `description`, pl
 
 An evidence reference has `path`, `sha256`, and `anchor`. Its hash covers the exact frozen artifact bytes. Accepted anchors are `L1`, `L1-L4`, `section:<exact heading>`, and `block:<UUID>`. The referenced lines, heading, or block must exist in that frozen artifact. Validation verifies the hash and anchor existence. Semantic review verifies support for the claim. A title, homepage link, or invented anchor is insufficient.
 
-`recorded_only` requires `reason` and no formal writes. `blocked` and `needs_review` require an empty `files` list and remain pending. State the missing evidence or unresolved decision. Every output is referenced by an outcome. Every frozen Event key has one outcome.
+An outcome may carry a one-line `summary`; the receipt keeps it and `mylibrary worklog` prints it. `recorded_only` requires `reason` and no formal writes. `blocked` and `needs_review` require an empty `files` list and remain pending. State the missing evidence or unresolved decision. Every output is referenced by an outcome. Every frozen Event key has one outcome.
 
 Each `integrated` outcome includes evidence from its own Event revision's `frozen_hashes`. References to other Events alone are insufficient. If that Event has partial coverage, include a nonempty `coverage_ack` explaining why the missing material cannot change this conclusion. Without that explanation, validation rejects integration. If the gap affects the conclusion, use `blocked` instead.
 
@@ -116,6 +116,7 @@ mylibrary resolve <ref>
 mylibrary neighbors <id> [--predicate <type>] [--direction incoming|outgoing|both]
 mylibrary source-open <ref> --mode cache|if-stale|live|historical [--revision <revision>]
 mylibrary publish [--entity <id>]
+mylibrary worklog [--run <run_id>]
 mylibrary setup --main <existing-MyLibrary-page-id-or-URL> [--dry-run]
 mylibrary setup --parent <parent-id-or-URL> [--dry-run]
 mylibrary backup --output <path>

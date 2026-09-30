@@ -54,6 +54,8 @@ def parser():
     source.add_argument("reference")
     source.add_argument("--mode", choices=("cache", "if-stale", "live", "historical"), default="cache")
     source.add_argument("--revision", type=int)
+    log = commands.add_parser("worklog")
+    log.add_argument("--run", dest="run_id")
     remote = commands.add_parser("publish")
     remote.add_argument("--entity", action="append", dest="entities")
     provisioning = commands.add_parser("setup", aliases=["notion-setup"])
@@ -120,6 +122,9 @@ def run(args):
             from .github import source_open as github_source
             return github_source(args.vault, args.reference, mode=args.mode, revision=args.revision)
         return result
+    if name == "worklog":
+        from .worklog import write_worklog
+        return {"written": write_worklog(args.vault, args.run_id)}
     if name == "publish":
         return publish(args.vault, args.entities)
     if name in {"setup", "notion-setup"}:
