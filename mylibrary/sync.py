@@ -207,16 +207,16 @@ def read_page(client, identifier):
                          "gaps": gaps, "continuation": [item["continue"] for item in gaps]}}
 
 
-def workspace_roots(client):
-    roots, cursor = [], None
+def search_all(client, kind):
+    found, cursor = [], None
     while True:
-        body = {"page_size": 100, "filter": {"property": "object", "value": "page"}}
+        body = {"page_size": 100, "filter": {"property": "object", "value": kind}}
         if cursor:
             body["start_cursor"] = cursor
         response = client.request("POST", "/search", body)
-        roots += [page for page in response.get("results", []) if page.get("parent", {}).get("type") == "workspace"]
+        found += response.get("results", [])
         if not response.get("has_more"):
-            return roots
+            return found
         if not response.get("next_cursor") or response["next_cursor"] == cursor:
             raise NotionError("Search has more results but no advancing cursor")
         cursor = response["next_cursor"]
@@ -228,11 +228,18 @@ def collect_watch(client, library, setup, skip):
     path = library._path("_state/notion/watch.json")
     saved = read_json(path) if path.exists() else {}
     known, baseline = saved.get("pages", {}), not saved.get("baseline_complete")
+    baseline_at = saved.get("baseline_at") or timestamp()
 
     def save(pages, complete, wait_seconds):
         with writer_lock(library.vault, wait_seconds=wait_seconds):
-            atomic_json(path, {"baseline_complete": complete, "pages": pages})
-    queue = [(notion_id(page["id"]), page.get("last_edited_time")) for page in workspace_roots(client)]
+            atomic_json(path, {"baseline_complete": complete, "baseline_at": baseline_at, "pages": pages})
+    queue = [(notion_id(page["id"]), page.get("last_edited_time")) for page in search_all(client, "page")
+             if page.get("parent", {}).get("type") == "workspace"]
+    for source in search_all(client, "data_source"):
+        database = notion_id(source.get("parent", {}).get("database_id") or source["id"])
+        parent = source.get("database_parent") or client.request("GET", "/databases/" + database).get("parent", {})
+        if parent.get("type") == "workspace" and database not in excluded and notion_id(source["id"]) not in machine:
+            queue += [(notion_id(row["id"]), row.get("last_edited_time")) for row in client.query(source["id"])]
     structure, observed, failures = {}, [], []
     while queue:
         identifier, edited = queue.pop(0)
@@ -254,7 +261,8 @@ def collect_watch(client, library, setup, skip):
                     name=title(captured["page"]), input_kind="source_update", authorship="source_observation",
                     occurred_at=captured["occurred_at"], mentions=captured["mentions"], semantic=captured["semantic"],
                     raw=captured["raw"], attachments=captured["attachments"], coverage=captured["coverage"],
-                    source_url=captured["page"].get("url", page_url(identifier)), baseline=baseline)
+                    source_url=captured["page"].get("url", page_url(identifier)),
+                    baseline=baseline or (cached is None and bool(edited) and edited < baseline_at))
                 observed.append({"page_id": identifier, "event_id": envelope["event_id"], "revision": envelope["revision"],
                                  "readiness": envelope["readiness"], "coverage": captured["coverage"]["status"]})
             structure[identifier] = entry

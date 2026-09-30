@@ -197,7 +197,7 @@ class SyncTests(unittest.TestCase):
         third = {item["page_id"]: item for item in collect(self.vault, self.client)["references"]}
         self.assertEqual((third[doc]["status"], third[doc]["revision"]), ("snapshotted", 2))
 
-    def watched_page(self, number, parent, text, edited="t1"):
+    def watched_page(self, number, parent, text, edited="2026-01-01T00:00:00.000Z"):
         page = self.client.add_page(number, source=None, text=text)
         self.client.pages[page]["parent"] = parent
         self.client.pages[page]["last_edited_time"] = edited
@@ -225,7 +225,7 @@ class SyncTests(unittest.TestCase):
         self.assertEqual(quiet["watch"]["observed"], [])
         self.assertFalse(any(call[1].startswith("/blocks/") for call in self.client.calls[calls:]))
         self.client.blocks[note][0]["paragraph"]["rich_text"] = [rich("Note body revised")]
-        self.client.pages[note]["last_edited_time"] = "t2"
+        self.client.pages[note]["last_edited_time"] = "2099-01-01T00:00:00.000Z"
         edited = collect(self.vault, self.client)
         self.assertEqual([(item["page_id"], item["revision"]) for item in edited["watch"]["observed"]], [(note, 2)])
         self.assertEqual([(event["name"], event["revision"], event["input_kind"]) for event in edited["pending"]],
@@ -240,6 +240,11 @@ class SyncTests(unittest.TestCase):
         person = self.watched_page(92, {"type": "data_source_id", "data_source_id": identifier(91)}, "Contact notes")
         result = collect(self.vault, self.client)
         self.assertEqual([item["page_id"] for item in result["watch"]["observed"]], [person])
+        late = self.watched_page(93, {"type": "data_source_id", "data_source_id": identifier(91)}, "Old but newly visible")
+        fresh = self.watched_page(94, {"type": "data_source_id", "data_source_id": identifier(91)}, "Written after the baseline",
+                                  edited="2099-01-01T00:00:00.000Z")
+        later = {item["page_id"]: item["readiness"] for item in collect(self.vault, self.client)["watch"]["observed"]}
+        self.assertEqual(later, {late: "baseline", fresh: "ready"})
 
     def test_busy_vault_skips_one_watch_page_without_losing_the_rest(self):
         settings = read_json(self.vault / SETUP)
