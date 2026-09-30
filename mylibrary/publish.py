@@ -239,7 +239,8 @@ def publish_one(vault, path, client, setup, activity=None):
         save(status="pending", page_id=identifier, target_hash=payload_hash, local_sha256=local_sha,
              desired_markdown=markdown, intent_path=str(intent_path.relative_to(vault)))
         try:
-            if _text(remote_body) != _text(markdown):
+            sent = digest(markdown) in {ledger.get("written_sha256"), pending_body and digest(pending_body)}
+            if not sent or _text(remote_body) != _text(markdown):
                 response = client.request("PATCH", "/pages/" + identifier + "/markdown",
                       {"type": "replace_content", "replace_content": {"new_str": markdown}, "allow_async": False})
                 if response.get("object") == "async_task":
@@ -258,6 +259,7 @@ def publish_one(vault, path, client, setup, activity=None):
             if checked_body != readback_body or _properties(checked, IDENTITY + ACTIVITY) != wanted_all or not _value(checked, "Published At"):
                 return save(status="needs_review", reason="Final body/property verification failed")
             return save(status="published", published_at=published_at, published_revision=metadata["revision"],
+                        written_sha256=digest(markdown),
                         remote_sha256=remote_hash, properties_sha256=property_hash, reason="Verified body and properties",
                         local_changed_during_publish=(digest(path) != local_sha))
         except (UncertainWrite, NotionError) as error:
