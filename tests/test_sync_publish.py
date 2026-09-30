@@ -291,6 +291,20 @@ class SyncTests(unittest.TestCase):
         self.assertEqual(self.result()["status"], "published")
         self.assertIn("**Known** result", self.client.markdown[page])
 
+    def test_unchanged_requires_the_exact_markdown_to_have_been_written(self):
+        self.entity()
+        first = self.result()
+        page = first["page_id"]
+        desired = self.client.markdown[page]
+        self.client.markdown[page] = desired.replace("Known result", "\\*\\*Known result")
+        ledger_path = self.vault / "_state/notion/publication/ent_example.json"
+        ledger = read_json(ledger_path)
+        ledger.pop("written_sha256")
+        ledger["remote_sha256"] = digest(publish_module.canonical_markdown(self.client.markdown[page]))
+        atomic_json(ledger_path, ledger)
+        self.assertEqual(self.result()["status"], "published")
+        self.assertEqual(self.client.markdown[page], desired)
+
     def test_lost_create_is_reconciled_once(self):
         self.entity()
         self.client.lose_create = True
