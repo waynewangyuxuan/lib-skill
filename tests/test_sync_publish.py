@@ -33,6 +33,7 @@ class MemoryNotion:
     def __init__(self):
         self.pages, self.blocks, self.markdown, self.sources = {}, {}, {}, {}
         self.calls, self.next_id = [], 100
+        self.database_sources = {}
         self.lose_create = False
         self.lose_body = False
         self.hide_query = False
@@ -73,6 +74,11 @@ class MemoryNotion:
         self.calls.append((method, path, copy.deepcopy(payload)))
         if path == "/users/me":
             return {"bot": {"workspace_id": WORKSPACE}}
+        if method == "POST" and path == "/search":
+            return {"results": [copy.deepcopy(page) for page in self.pages.values()
+                                if page.get("parent", {}).get("type") == "workspace"], "has_more": False}
+        if method == "GET" and path.startswith("/databases/"):
+            return {"id": path.split("/")[2], "data_sources": [{"id": self.database_sources[path.split("/")[2]]}]}
         if method == "GET" and path.startswith("/data_sources/"):
             return copy.deepcopy(self.sources[path.split("/")[-1]])
         if method == "GET" and path.endswith("/markdown"):
@@ -183,6 +189,40 @@ class SyncTests(unittest.TestCase):
         self.client.pages[doc]["last_edited_time"] = "later"
         third = {item["page_id"]: item for item in collect(self.vault, self.client)["references"]}
         self.assertEqual((third[doc]["status"], third[doc]["revision"]), ("snapshotted", 2))
+
+    def watched_page(self, number, parent, text, edited="t1"):
+        page = self.client.add_page(number, source=None, text=text)
+        self.client.pages[page]["parent"] = parent
+        self.client.pages[page]["last_edited_time"] = edited
+        return page
+
+    def test_watch_area_baselines_then_queues_edits(self):
+        settings = read_json(self.vault / SETUP)
+        diary = self.watched_page(80, {"type": "workspace", "workspace": True}, "Private diary")
+        settings["watch"] = {"exclude": [diary]}
+        atomic_json(self.vault / SETUP, settings)
+        root = self.watched_page(60, {"type": "workspace", "workspace": True}, "Study root")
+        note = self.watched_page(61, {"type": "page_id", "page_id": root}, "Note body")
+        row = self.watched_page(62, {"type": "data_source_id", "data_source_id": identifier(70)}, "Row body")
+        self.client.database_sources[identifier(69)] = identifier(70)
+        self.client.blocks[root] += [{"id": note, "type": "child_page", "child_page": {"title": "Note"}},
+                                     {"id": identifier(69), "type": "child_database", "child_database": {"title": "Courses"}}]
+        first = collect(self.vault, self.client)
+        self.assertEqual(first["watch"]["baseline"], True)
+        self.assertEqual(sorted(item["page_id"] for item in first["watch"]["observed"]), sorted([root, note, row]))
+        self.assertEqual(first["pending"], [])
+        self.assertEqual(search(self.vault, "row body", scope="sources")[0]["kind"], "source")
+        self.assertEqual(search(self.vault, "private diary", scope="all"), [])
+        calls = len(self.client.calls)
+        quiet = collect(self.vault, self.client)
+        self.assertEqual(quiet["watch"]["observed"], [])
+        self.assertFalse(any(call[1].startswith("/blocks/") for call in self.client.calls[calls:]))
+        self.client.blocks[note][0]["paragraph"]["rich_text"] = [rich("Note body revised")]
+        self.client.pages[note]["last_edited_time"] = "t2"
+        edited = collect(self.vault, self.client)
+        self.assertEqual([(item["page_id"], item["revision"]) for item in edited["watch"]["observed"]], [(note, 2)])
+        self.assertEqual([(event["name"], event["revision"], event["input_kind"]) for event in edited["pending"]],
+                         [("Note", 2, "source_update")])
 
     def test_empty_new_page_then_edit_and_missing_attachment(self):
         page = self.client.add_page(12, text="")
