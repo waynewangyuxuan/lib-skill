@@ -207,6 +207,68 @@ def read_page(client, identifier):
                          "gaps": gaps, "continuation": [item["continue"] for item in gaps]}}
 
 
+def workspace_roots(client):
+    roots, cursor = [], None
+    while True:
+        body = {"page_size": 100, "filter": {"property": "object", "value": "page"}}
+        if cursor:
+            body["start_cursor"] = cursor
+        response = client.request("POST", "/search", body)
+        roots += [page for page in response.get("results", []) if page.get("parent", {}).get("type") == "workspace"]
+        if not response.get("has_more"):
+            return roots
+        if not response.get("next_cursor") or response["next_cursor"] == cursor:
+            raise NotionError("Search has more results but no advancing cursor")
+        cursor = response["next_cursor"]
+
+
+def collect_watch(client, library, setup, skip):
+    excluded = {notion_id(item) for item in setup["watch"].get("exclude", [])} | skip
+    machine = {notion_id(setup["resources"][key]["data_source_id"]) for key in ("events", "entities")}
+    path = library._path("_state/notion/watch.json")
+    known = read_json(path) if path.exists() else {}
+    baseline = not known
+    queue = [(notion_id(page["id"]), page.get("last_edited_time")) for page in workspace_roots(client)]
+    structure, observed, failures = {}, [], []
+    while queue:
+        identifier, edited = queue.pop(0)
+        if identifier in structure or identifier in excluded:
+            continue
+        cached = known.get(identifier)
+        try:
+            if edited is None:
+                edited = client.request("GET", "/pages/" + identifier).get("last_edited_time")
+            if cached and cached["edited"] == edited:
+                entry = cached
+            else:
+                captured = read_page(client, identifier)
+                blocks = captured["raw"]["blocks"]
+                entry = {"edited": edited,
+                         "children": [notion_id(block["id"]) for block in blocks if block.get("type") == "child_page"],
+                         "databases": [notion_id(block["id"]) for block in blocks if block.get("type") == "child_database"]}
+                envelope = library.record("notion", setup["workspace_id"], identifier, captured["body"],
+                    name=title(captured["page"]), input_kind="source_update", authorship="source_observation",
+                    occurred_at=captured["occurred_at"], mentions=captured["mentions"], semantic=captured["semantic"],
+                    raw=captured["raw"], attachments=captured["attachments"], coverage=captured["coverage"],
+                    source_url=captured["page"].get("url", page_url(identifier)), baseline=baseline)
+                observed.append({"page_id": identifier, "event_id": envelope["event_id"], "revision": envelope["revision"],
+                                 "readiness": envelope["readiness"], "coverage": captured["coverage"]["status"]})
+            structure[identifier] = entry
+            for database in entry["databases"]:
+                for source in client.request("GET", "/databases/" + database).get("data_sources", []):
+                    if notion_id(source["id"]) not in machine:
+                        queue += [(notion_id(row["id"]), row.get("last_edited_time")) for row in client.query(source["id"])]
+            queue += [(child, None) for child in entry["children"]]
+        except (NotionError, ValueError) as error:
+            failures.append({"page_id": identifier, "status": "unreachable", "reason": str(error)})
+            if cached:
+                structure[identifier] = cached
+    with writer_lock(library.vault):
+        atomic_json(path, structure)
+    return {"baseline": baseline, "pages": len(structure), "observed": observed, "failures": failures,
+            "not_observed": sorted(set(known) - set(structure))}, set(structure)
+
+
 def notion_links(body):
     found = set()
     for url in re.findall(r"https://(?:www\.|app\.)?notion\.(?:so|com)/[^\s)\]]+", body):
@@ -285,15 +347,16 @@ def collect(vault, client=None):
               if key in {"events", "entities"}}
     skip = seen | machine_pages | {notion_id(setup["resources"][key]["page_id"])
                                    for key in ("main", "entities_page") if key in setup["resources"]}
+    watch, watched = collect_watch(client, library, setup, skip) if "watch" in setup else (None, set())
     references = [snapshot_reference(client, library, setup["workspace_id"], target, sorted(events), inputs)
-                  for target, events in sorted(cited.items()) if target not in skip]
+                  for target, events in sorted(cited.items()) if target not in skip | watched]
     state_path = library._path("_state/notion/acquisition.json")
     with writer_lock(vault):
         previous = read_json(state_path) if state_path.exists() else {}
         previously_seen = set(previous.get("known_page_ids", []))
         report = {"schema_version": 1, "checked_at": timestamp(), "observations": observations,
                   "failures": failures, "not_observed": sorted(previously_seen - seen),
-                  "known_page_ids": sorted(previously_seen | seen), "references": references}
+                  "known_page_ids": sorted(previously_seen | seen), "references": references, "watch": watch}
         atomic_json(state_path, report)
     report["pending"] = library.pending()
     return report

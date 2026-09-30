@@ -294,7 +294,7 @@ class Library:
 
     def record(self, provider, workspace_id, resource_id, body, *, name="", input_kind="event",
                occurred_at=None, authorship="unknown", mentions=(), semantic=None, raw=None,
-               attachments=(), coverage=None, source_url=None):
+               attachments=(), coverage=None, source_url=None, baseline=False):
         if not all(isinstance(value, str) and value for value in (provider, workspace_id, resource_id)):
             raise ValueError("Provider, workspace and resource identity required")
         if not isinstance(body, str) or input_kind not in {"event", "source_update"}:
@@ -338,7 +338,7 @@ class Library:
                         "normalizer_version": (semantic or {}).get("normalizer_version", "1"),
                         "body_path": relative + "/body.md", "raw_path": relative + "/raw.json",
                         "source_url": source_url, "attachments": assets, "coverage": coverage,
-                        "readiness": "ready" if body.strip() or assets else "empty"}
+                        "readiness": ("baseline" if baseline else "ready") if body.strip() or assets else "empty"}
             self._write_assets(source_id, asset_bytes)
             evidence_raw = _safe_raw(raw or {})
             snapshot = self._path(source_relative)
@@ -430,7 +430,7 @@ class Library:
             for path in sorted(root.glob("*/revisions/*/event.json")):
                 path = self._path(path.relative_to(self.vault))
                 event = read_json(path)
-                if event["readiness"] != "empty" and not self._completed(consumer, event["event_id"], event["revision"]):
+                if event["readiness"] == "ready" and not self._completed(consumer, event["event_id"], event["revision"]):
                     result.append(event)
         return result
 
@@ -448,8 +448,8 @@ class Library:
                 if type(revision) is not int or revision < 1:
                     raise ValueError("Invalid Event revision")
                 event = read_json(self._path(f"_events/{event_id}/revisions/{revision}/event.json"))
-                if event["readiness"] == "empty":
-                    raise ValueError("Empty Event remains nonconsumable")
+                if event["readiness"] != "ready":
+                    raise ValueError("Empty or baseline Event remains nonconsumable")
                 events.append(event)
         frozen_events, evidence = [], {}
         for event in events:
