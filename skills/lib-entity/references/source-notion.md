@@ -7,7 +7,7 @@ Load this when an Event, reference, or question involves Notion. It says what th
 | Area | Role | Local copy |
 |---|---|---|
 | Events database | Wayne's input. One page is one Event identity. Each semantic edit becomes a new revision. | `_events/<event_id>/revisions/<n>/{body.md,raw.json,event.json}` plus `_sources/src_<same key>/snapshots/<n>/` |
-| Watched workspace pages and database rows | Wayne's notes outside Events. The first pass is a non-pending baseline; each later edit is a pending `source_update` revision. | `_events/<event_id>/revisions/<n>/` with `input_kind: source_update`, structure in `_state/notion/watch.json` |
+| Watched workspace pages and database rows | Wayne's own notes outside Events (`authorship: wayne`). The first pass is a non-pending baseline; each later edit is a pending `source_update` revision. | `_events/<event_id>/revisions/<n>/` with `input_kind: source_update`, structure in `_state/notion/watch.json` |
 | Pages an Event mentions or links, outside the watch area | Reference material, not input. Never pending, never a user decision. | `_sources/<source_id>/` with `role: reference` in `source.json` |
 | Entities database (`ENT <name>` pages) | Machine-published views of local Entities. Output only. | The local `_entities/*.md` file is the authority |
 | Main page and the Entities page | Layout. | Never collected |

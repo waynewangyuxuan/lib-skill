@@ -2,11 +2,12 @@
 name: lib-settle
 description: >
   Integrate pending MyLibrary Event revisions into stable Entities through a
-  frozen source pack, staging, validation, and recoverable apply. Use for
-  "settle", "settle today", "settle all unprocessed", or explicit historical
-  forward and reverse reads.
+  frozen source pack, staging, validation, and recoverable apply, or capture
+  the current agent session and settle it at once. Use for "settle", "settle
+  today", "settle all unprocessed", "export", "导出", "总结一下", "export
+  result", "export detail", "记录过程", or historical forward and reverse reads.
 metadata:
-  runtime: mylibrary-tools>=3.1.0
+  runtime: mylibrary-tools>=3.2.0
 ---
 
 # Integrate pending Events
@@ -26,6 +27,17 @@ The input unit is an Event revision, not a daily heading. Multiple Events may up
 9. Run `mylibrary worklog --run <run_id>`. It rewrites the `## Settle Log · 回执 #ai-generated` section of each affected day in `工作记录/` from receipts, creating the day file if needed. Give each `integrated` outcome a `summary` in staging so the log says what changed. Write `summary` and `reason` as one short line in the language of Wayne's work log, without IDs a reader cannot use. Do not hand-edit that section.
 
 An interrupted apply uses `mylibrary recover <run_id>`. A human-edited base blocks replacement and requires a new proposal from that base. Only successful outcomes backed by the completed apply receipt count as consumed.
+
+## Capture and settle this session
+
+For "export" or "导出", record the current session as a bounded Event, then settle only that Event.
+
+1. Write temporary Markdown outside `~/MyLibrary` in the session's language and voice. Result mode, the default, records decisions, outcomes, measurements, artifacts, and open work. Detail mode, on request for process or discussion, adds important reasoning changes and exact user quotes with context. Preserve artifact URLs and source identities. Exclude credentials and routine tool chatter. Nothing substantive means no capture.
+2. Run `mylibrary capture <file> --name <session-name> --resource-id <stable-session-id> --mode result` or `--mode detail`. Reuse the resource ID on retry; a semantic change becomes a new revision.
+3. Write `[["<event_id>", <revision>]]` to a keys file and run `mylibrary freeze --output "$(mktemp -d)/frozen.json" --consumer settle --keys <file>`.
+4. Continue from step 3 of the batch above for that single Event, through publish and `mylibrary worklog`.
+
+Do not claim a behavior was tested when only its code or API response was inspected.
 
 ## Read historical work
 

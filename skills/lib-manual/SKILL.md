@@ -5,10 +5,10 @@ description: >
   compatibility, and recovery. Use for "lib-manual", "vault manual",
   "how does the vault work", or a specific subsystem question.
 metadata:
-  runtime: mylibrary-tools>=3.1.0
+  runtime: mylibrary-tools>=3.2.0
 ---
 
-# Explain MyLibrary 3.1
+# Explain MyLibrary 3.2
 
 Give a bounded, read-only explanation for the requested topic. Start with the relevant shared reference, then inspect actual status or selected local files. Do not load the whole vault to answer one question.
 

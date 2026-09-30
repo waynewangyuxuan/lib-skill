@@ -1,4 +1,4 @@
-# lib-skill 3.1
+# lib-skill 3.2
 
 MyLibrary captures Events, preserves their source evidence, and integrates supported knowledge into stable Entities. Local files are authoritative. Notion supplies the Events database, a watched workspace area, and fixed Entity output pages.
 
@@ -47,14 +47,13 @@ bash ~/lib-skill/install.sh all --python ~/.venvs/mylibrary/bin/python
 
 Use `mylibrary recover <run_id>` after an interrupted apply. Retry publication separately. Missing evidence, uncertain identity, and human-edit conflicts remain unresolved rather than consumed.
 
-For local session input, use `lib-export` and `mylibrary capture <file> --resource-id <stable-id> --mode result`. Detail mode retains the important reasoning changes and user quotes.
+To record the current agent session, ask `lib-settle` to export it: it runs `mylibrary capture <file> --resource-id <stable-id> --mode result` and settles that Event at once. Detail mode retains the important reasoning changes and user quotes.
 
 ## Skills
 
 | Skill | Task |
 |---|---|
-| lib-export | Capture a session Event in result or detail mode |
-| lib-settle | Integrate frozen Event revisions through staging and apply |
+| lib-settle | Integrate pending Event revisions, or capture and settle the current session |
 | lib-entity | Resolve identities and propose supported Entity memory |
 | lib-search | Retrieve descriptions, typed neighbors, and source evidence |
 | lib-notion | Configure explicit input scope and fixed-page publication |

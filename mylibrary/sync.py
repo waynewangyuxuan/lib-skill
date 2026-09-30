@@ -258,7 +258,7 @@ def collect_watch(client, library, setup, skip):
                          "children": [notion_id(block["id"]) for block in blocks if block.get("type") == "child_page"],
                          "databases": [notion_id(block["id"]) for block in blocks if block.get("type") == "child_database"]}
                 envelope = library.record("notion", setup["workspace_id"], identifier, captured["body"],
-                    name=title(captured["page"]), input_kind="source_update", authorship="source_observation",
+                    name=title(captured["page"]), input_kind="source_update", authorship="wayne",
                     occurred_at=captured["occurred_at"], mentions=captured["mentions"], semantic=captured["semantic"],
                     raw=captured["raw"], attachments=captured["attachments"], coverage=captured["coverage"],
                     source_url=captured["page"].get("url", page_url(identifier)),
@@ -351,7 +351,7 @@ def collect(vault, client=None):
                     raise NotionError("Machine snapshots cannot be collected as input")
                 envelope = library.record("notion", setup["workspace_id"], identifier, captured["body"],
                     name=title(captured["page"]), input_kind="event",
-                    occurred_at=captured["occurred_at"], authorship="unknown",
+                    occurred_at=captured["occurred_at"], authorship="wayne",
                     mentions=captured["mentions"], semantic=captured["semantic"], raw=captured["raw"],
                     attachments=captured["attachments"], coverage=captured["coverage"],
                     source_url=captured["page"].get("url", page_url(identifier)))

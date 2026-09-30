@@ -6,7 +6,7 @@ agent_name="claude-code"
 runtime_python="${MYLIBRARY_PYTHON:-python3}"
 runtime_only=false
 dry_run=false
-skills=(lib-entity lib-export lib-manual lib-notion lib-review lib-search lib-settle)
+skills=(lib-entity lib-manual lib-notion lib-review lib-search lib-settle)
 
 usage() {
   echo "Usage: bash install.sh [codex|claude-code|all] [--python executable] [--runtime-only] [--dry-run]"
