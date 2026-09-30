@@ -207,31 +207,6 @@ def read_page(client, identifier):
                          "gaps": gaps, "continuation": [item["continue"] for item in gaps]}}
 
 
-def refresh_status(vault, client):
-    block = config(vault).get("status_block_id")
-    if not block:
-        return None
-    library = Library(vault)
-    local = lambda moment: datetime.fromisoformat(moment.replace("Z", "+00:00")).astimezone().strftime("%m-%d %H:%M")
-    parts = []
-    collected = library._path("_state/notion/acquisition.json")
-    if collected.exists():
-        parts.append(f"上次收取 {local(read_json(collected)['checked_at'])}，待处理 {len(library.pending())} 条")
-    published = library._path("_state/notion/last-publish.json")
-    if published.exists():
-        report = read_json(published)
-        synced = sum(item.get("status") in {"published", "unchanged"} for item in report["results"])
-        waiting = len(report["results"]) - synced
-        parts.append(f"上次发布 {local(report['checked_at'])}，{synced} 个 Entity 已同步"
-                     + (f"，{waiting} 个待处理" if waiting else ""))
-    text = "；".join(parts) + "。沉淀由你手动触发。" if parts else "本地尚未收取。沉淀由你手动触发。"
-    try:
-        client.request("PATCH", "/blocks/" + block, {"paragraph": {"rich_text": [rich(text)]}})
-    except NotionError as error:
-        return {"status": "failed", "reason": str(error)}
-    return {"status": "updated", "text": text}
-
-
 def notion_links(body):
     found = set()
     for url in re.findall(r"https://(?:www\.|app\.)?notion\.(?:so|com)/[^\s)\]]+", body):
@@ -322,7 +297,6 @@ def collect(vault, client=None):
                   "known_page_ids": sorted(previously_seen | seen), "references": references}
         atomic_json(state_path, report)
     report["pending"] = library.pending()
-    report["status_line"] = refresh_status(vault, client)
     return report
 
 
@@ -577,12 +551,10 @@ def _setup(vault, plan, client=None):
     children = [block("heading_1", "New Event"), block("paragraph", "写下一条想法、进展或决定。无需填写项目。"),
                 {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [rich("打开 Events →", state["resources"]["events"]["url"])]}},
                 {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [rich("Entities →", state["resources"]["entities_page"]["url"])]}},
-                block("paragraph", "这里只收取 Events 和 Pages。主页布局中的文字不会自动成为记录。"),
-                block("paragraph", "本地尚未收取。沉淀由你手动触发。")]
-    layout = create("main_layout", f"/blocks/{main_id}/children", {"children": children}, method="PATCH")
+                block("paragraph", "这里只收取 Events 和 Pages。主页布局中的文字不会自动成为记录。")]
+    create("main_layout", f"/blocks/{main_id}/children", {"children": children}, method="PATCH")
     with writer_lock(vault, wait_seconds=30):
         state.update(read_json(path))
-        state["status_block_id"] = layout["results"][-1]["id"]
         state["status"] = "api_ready_needs_ui"
         state.setdefault("ui_required", plan["ui_required"])
         atomic_json(path, state)
