@@ -34,6 +34,6 @@ Use `[[wikilinks]]` for vault Markdown and Markdown links for external resources
 
 ## Respect existing boundaries
 
-Read folder contracts when accessing project storage. Keep compiled YAML and `lib-compile` compatible. Do not write vault `META/` mirrors. Do not read `_personal/` without an explicit request. Historical date-based reads use the vault's 04:00 day boundary. Event identity does not depend on daily headings or dates.
+Read a folder's `_folder.md` as its description when accessing project storage. Do not write vault `META/` mirrors. Do not read `_personal/` without an explicit request. Historical date-based reads use the vault's 04:00 day boundary. Event identity does not depend on daily headings or dates.
 
-Each distributed skill includes its required references. Event processing and indexed retrieval require the shared runtime, installed once with `python3 -m pip install -e <lib-skill-repo>`. A single-skill install does not include that Python package. If `mylibrary` is unavailable, report the dependency before collecting or writing. `lib-compile` retains its existing local configuration workflow.
+Each distributed skill includes its required references. Event processing and indexed retrieval require the shared runtime, installed once with `python3 -m pip install -e <lib-skill-repo>`. A single-skill install does not include that Python package. If `mylibrary` is unavailable, report the dependency before collecting or writing.

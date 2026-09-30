@@ -16,7 +16,6 @@ Give a bounded, read-only explanation for the requested topic. Start with the re
 | Storage, staging, receipts, recover, publish | [runtime-schema.md](references/runtime-schema.md) |
 | Entity identity and compatibility | [skill-conventions.md](references/skill-conventions.md) |
 | Typed graph and retrieval | [relations-vocabulary.md](references/relations-vocabulary.md) |
-| Folder configuration | Existing `_folder.md` and compiled YAML; use `lib-compile` |
 
 The common route is capture or collect, freeze, compare Entity descriptions, load the needed source pack, stage, validate, apply, index, and publish. `mylibrary status` identifies pending or incomplete work. Recovery and publication have separate retries.
 

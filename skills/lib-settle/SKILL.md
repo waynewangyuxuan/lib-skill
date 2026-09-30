@@ -30,6 +30,6 @@ An explicit date or reverse-settle request may inspect old work logs and reposit
 
 Capture the selected historical evidence as a bounded Event before new integration. Do not scan all history by default. A heading, backlink, legacy Settle Log, or scanner `seen` entry does not skip a pending Event. Migrate a legacy Entity only when this settle writes it.
 
-Semantic Entity decisions use `lib-entity` rules within the same proposal. Do not run a second direct-write extraction pass after apply. Load [skill-conventions.md](references/skill-conventions.md) when a boundary or legacy folder contract matters.
+Semantic Entity decisions use `lib-entity` rules within the same proposal. Do not run a second direct-write extraction pass after apply. Load [skill-conventions.md](references/skill-conventions.md) when a write boundary matters.
 
 The shared `mylibrary` runtime is required even for a single-skill install. Do not write vault META mirrors or read `_personal/` without an explicit request.

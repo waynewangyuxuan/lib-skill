@@ -24,9 +24,3 @@ Every frozen Event revision needs exactly one outcome. An integrated output has 
 Write complete replacement Entity files and the manifest outside the vault. Use [runtime-schema.md](runtime-schema.md). Run `mylibrary validate <staging>` before `mylibrary apply <staging>`. Keep outputs for uncertain or blocked Events out of the formal write set.
 
 The runtime accepts formal outputs at `_entities/<name>.md`. Consumption receipts are independent of daily Settle Logs, backlinks, and legacy note copies. Retry publication separately from apply.
-
-## Legacy folder consumers
-
-Existing `settle.consumer`, `settle.target`, and `settle.dimensions` remain readable by `lib-compile` and historical workflows. `notes` names the existing note-copy policy. `feature-room` names a source-repository workflow. `skip` names an excluded destination.
-
-Those folder policies do not establish Event consumption. If the user requests a historical note copy, preserve the original, apply its folder contract, and report the copy separately. Never edit the vault's read-only META mirror. An unsupported custom consumer blocks its requested action instead of silently falling back to another behavior.

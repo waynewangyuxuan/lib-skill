@@ -11,14 +11,14 @@
     "mylibrary",
     "vault",
     "entities",
-    "obsidian"
+    "notion"
   ],
   "extensions": {
     "com.openai": {
       "interface": {
         "displayName": "lib-skill",
         "shortDescription": "Event-first memory and retrieval for MyLibrary.",
-        "longDescription": "Capture Events, collect configured Notion inputs, stage and apply Entity memory, retrieve source evidence, review receipts, and publish fixed Entity views. Install the shared mylibrary Python runtime once from this repository. Legacy folder compilation remains compatible.",
+        "longDescription": "Capture Events, collect configured Notion inputs, stage and apply Entity memory, retrieve source evidence, review receipts, and publish fixed Entity views. Install the shared mylibrary Python runtime once from this repository.",
         "developerName": "Wayne Wang",
         "category": "Productivity",
         "capabilities": [

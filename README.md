@@ -36,7 +36,7 @@ Single-skill installation remains supported through the Agent Skills distributio
 npx skills add waynewangyuxuan/lib-skill --skill lib-search --agent codex --global --yes
 ```
 
-Each skill includes its references. It depends on the one shared runtime rather than carrying a duplicate package. `lib-compile` retains its existing local configuration workflow. The portable `plugin.json`, Codex fallback manifest, and marketplace metadata remain available for plugin installation.
+Each skill includes its references. It depends on the one shared runtime rather than carrying a duplicate package. The portable `plugin.json`, Codex fallback manifest, and marketplace metadata remain available for plugin installation.
 
 ## Process one batch
 
@@ -45,7 +45,7 @@ Each skill includes its references. It depends on the one shared runtime rather 
 3. Use `lib-settle` to resolve Entity descriptions and load only the needed source pack.
 4. Stage complete Entity replacements and an outcome for every frozen Event outside the vault.
 5. Run `mylibrary validate <staging>` and `mylibrary apply <staging>`.
-6. Run `mylibrary index` and publish the authorized pilot with `mylibrary publish --entity <id>`.
+6. Run `mylibrary index` and publish each affected Entity with `mylibrary publish --entity <id>`.
 
 Use `mylibrary recover <run_id>` after an interrupted apply. Retry publication separately. Missing evidence, uncertain identity, and human-edit conflicts remain unresolved rather than consumed.
 
@@ -62,7 +62,6 @@ For local session input, use `lib-export` and `mylibrary capture <file> --resour
 | lib-notion | Configure explicit input scope and fixed-page publication |
 | lib-review | Review receipts, unresolved Events, and publication gaps |
 | lib-manual | Explain commands, compatibility, and recovery |
-| lib-compile | Compile existing folder configuration |
 
 ## Shared references
 
@@ -70,7 +69,7 @@ For local session input, use `lib-export` and `mylibrary capture <file> --resour
 
 Run `bash scripts/sync-stdlib.sh` after changing shared references. It copies the selected files into distributed skills. Keep progressive reads bounded to descriptions, chosen Entity bodies, and relevant frozen artifacts.
 
-The old Notion scanner defaults to the shared collector. Its explicit `legacy-scan` mode remains read-only compatibility with an observation checkpoint. Credential storage retains the dedicated macOS Keychain route. A legacy checkpoint is never an Event consumption receipt.
+Notion input comes only from `mylibrary collect`. The token is injected from Doppler, with an existing macOS Keychain item as fallback.
 
 To use an existing Notion page as the workbench, run `mylibrary setup --main <MyLibrary-page-URL> --dry-run` and then run the same command without `--dry-run`. `--parent` retains its earlier meaning: create a new MyLibrary child under that page. Setup preserves existing Main content and stops on unrelated same-title child collisions.
 
