@@ -291,7 +291,7 @@ class StorageTests(unittest.TestCase):
     def test_nonblocking_writer_lock_excludes_second_writer(self):
         with writer_lock(self.vault):
             with self.assertRaises(BlockingIOError):
-                with writer_lock(self.vault):
+                with writer_lock(self.vault, wait_seconds=0):
                     pass
 
     def test_waiting_writer_enters_after_active_writer_releases(self):
@@ -308,6 +308,21 @@ class StorageTests(unittest.TestCase):
             self.assertTrue(waiter.is_alive())
         waiter.join(timeout=2)
         self.assertEqual(result, ["entered"])
+
+    def test_record_waits_out_a_brief_background_writer(self):
+        released = threading.Event()
+
+        def background_commit():
+            with writer_lock(self.vault):
+                released.wait(1)
+                time.sleep(0.3)
+
+        holder = threading.Thread(target=background_commit)
+        holder.start()
+        time.sleep(0.05)
+        released.set()
+        self.assertEqual(self.record()["revision"], 1)
+        holder.join(timeout=2)
 
     def test_receipt_window_crash_stays_pending_until_final_run_receipt(self):
         event = self.record()
