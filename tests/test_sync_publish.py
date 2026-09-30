@@ -26,7 +26,7 @@ def identifier(number):
     return str(uuid.UUID(int=number))
 
 
-WORKSPACE, EVENTS, PAGES, ENTITIES = [identifier(value) for value in (1, 2, 3, 4)]
+WORKSPACE, EVENTS, ENTITIES = [identifier(value) for value in (1, 2, 4)]
 
 
 class MemoryNotion:
@@ -134,7 +134,7 @@ class SyncTests(unittest.TestCase):
         self.client = MemoryNotion()
         (self.vault / "_entities").mkdir()
         atomic_json(self.vault / SETUP, {"schema_version": 1, "workspace_id": WORKSPACE,
-                    "resources": {"events": {"data_source_id": EVENTS}, "pages": {"data_source_id": PAGES},
+                    "resources": {"events": {"data_source_id": EVENTS},
                                   "entities": {"data_source_id": ENTITIES}}})
 
     def entity(self, name="Example", revision=1):
@@ -147,18 +147,16 @@ class SyncTests(unittest.TestCase):
 
     def test_collect_revisions_mentions_bytes_and_scope(self):
         one = self.client.add_page(10, mention=identifier(50), file_url="https://s3.amazonaws.com/a?X-Amz-Signature=first")
-        self.client.add_page(11, PAGES, "Persistent document")
         result = collect(self.vault, self.client)
-        self.assertEqual(len(result["observations"]), 2)
+        self.assertEqual(len(result["observations"]), 1)
         envelope = next(event for event in result["pending"] if event["identity"]["resource_id"] == one)
         self.assertEqual(envelope["mentions"], [identifier(50)])
         self.assertEqual((self.vault / envelope["attachments"][0]["path"]).read_bytes(), b"actual image bytes")
         self.client.blocks[one][1]["image"]["file"]["url"] = "https://s3.amazonaws.com/a?X-Amz-Signature=second"
         self.client.pages[one]["properties"]["Edited"]["last_edited_time"] = "later"
         again = collect(self.vault, self.client)
-        self.assertEqual([item["revision"] for item in again["observations"]], [1, 1])
+        self.assertEqual([item["revision"] for item in again["observations"]], [1])
         self.assertNotIn("X-Amz-Signature", (self.vault / envelope["raw_path"]).read_text())
-        self.assertEqual({event["input_kind"] for event in result["pending"]}, {"event", "source_update"})
         self.assertFalse(any(call[1] == "/search" for call in self.client.calls))
 
     def test_referenced_pages_are_local_sources_not_inputs(self):
@@ -438,7 +436,7 @@ class SetupTests(unittest.TestCase):
             two = setup(vault, parent, client=client)
             self.assertEqual(one["resources"], two["resources"])
             self.assertEqual(sum(call[0] in {"POST", "PATCH"} for call in client.calls), count)
-            self.assertEqual(len(one["resources"]), 5)
+            self.assertEqual(len(one["resources"]), 4)
 
     def test_setup_adds_activity_properties_and_charts_to_existing_setup(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -462,8 +460,8 @@ class SetupTests(unittest.TestCase):
             self.assertEqual(sorted(client.sources[source]["properties"]),
                              sorted(first["resources"]["entities"]["properties"]))
             self.assertEqual(second["resources"]["entities"]["properties"], first["resources"]["entities"]["properties"])
-            self.assertEqual(sum(call[:2] == ("POST", "/databases") for call in client.calls), 3)
-            self.assertEqual(sum(call[:2] == ("POST", "/views") for call in client.calls), 7)
+            self.assertEqual(sum(call[:2] == ("POST", "/databases") for call in client.calls), 2)
+            self.assertEqual(sum(call[:2] == ("POST", "/views") for call in client.calls), 6)
 
     def test_setup_lost_create_stops_instead_of_duplicate(self):
         with tempfile.TemporaryDirectory() as temporary:

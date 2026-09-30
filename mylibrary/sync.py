@@ -31,13 +31,13 @@ def config(vault):
     if result.get("schema_version") != 1:
         raise ValueError("Unsupported Notion setup schema")
     sources = result.get("resources", {})
-    for name in ("events", "pages", "entities"):
+    for name in ("events", "entities"):
         if not sources.get(name, {}).get("data_source_id"):
             raise ValueError("Notion setup is incomplete: " + name)
-    ids = [notion_id(sources[name]["data_source_id"]) for name in ("events", "pages", "entities")]
-    if len(set(ids)) != 3:
+    ids = [notion_id(sources[name]["data_source_id"]) for name in ("events", "entities")]
+    if len(set(ids)) != 2:
         raise ValueError("Input and machine data sources must be distinct")
-    for name, identifier in zip(("events", "pages", "entities"), ids):
+    for name, identifier in zip(("events", "entities"), ids):
         sources[name]["data_source_id"] = identifier
     result["workspace_id"] = notion_id(result["workspace_id"])
     return result
@@ -249,8 +249,7 @@ def collect(vault, client=None):
     mapped = read_json(mapping_path) if mapping_path.exists() else {}
     machine_pages = {notion_id(item["page_id"]) for item in mapped.values()}
     library, observations, failures, seen, cited = Library(vault), [], [], set(), {}
-    for group, kind in (("events", "event"), ("pages", "source_update")):
-        source = notion_id(setup["resources"][group]["data_source_id"])
+    for source in (notion_id(setup["resources"]["events"]["data_source_id"]),):
         try:
             pages = client.query(source)
         except NotionError as error:
@@ -271,8 +270,8 @@ def collect(vault, client=None):
                 if actual and notion_id(actual) == machine_source:
                     raise NotionError("Machine snapshots cannot be collected as input")
                 envelope = library.record("notion", setup["workspace_id"], identifier, captured["body"],
-                    name=title(captured["page"]), input_kind=kind,
-                    occurred_at=captured["occurred_at"], authorship="unknown" if kind == "event" else "source_observation",
+                    name=title(captured["page"]), input_kind="event",
+                    occurred_at=captured["occurred_at"], authorship="unknown",
                     mentions=captured["mentions"], semantic=captured["semantic"], raw=captured["raw"],
                     attachments=captured["attachments"], coverage=captured["coverage"],
                     source_url=captured["page"].get("url", page_url(identifier)))
@@ -283,7 +282,7 @@ def collect(vault, client=None):
             except (NotionError, ValueError) as error:
                 failures.append({"page_id": identifier, "status": "unreachable_or_moved", "reason": str(error)})
     inputs = {notion_id(item["data_source_id"]) for key, item in setup["resources"].items()
-              if key in {"events", "pages", "entities"}}
+              if key in {"events", "entities"}}
     skip = seen | machine_pages | {notion_id(setup["resources"][key]["page_id"])
                                    for key in ("main", "entities_page") if key in setup["resources"]}
     references = [snapshot_reference(client, library, setup["workspace_id"], target, sorted(events), inputs)
@@ -335,7 +334,7 @@ def source_open(vault, reference, mode="cache", revision=None, client=None):
         try:
             captured = read_page(client, source["identity"]["resource_id"])
             parent = captured["page"].get("parent", {})
-            allowed = {item["data_source_id"] for key, item in setup["resources"].items() if key in {"events", "pages"}}
+            allowed = {item["data_source_id"] for key, item in setup["resources"].items() if key == "events"}
             actual = parent.get("data_source_id")
             if not actual or notion_id(actual) not in allowed:
                 raise NotionError("Source is outside the configured input collections")
@@ -368,7 +367,7 @@ def setup_plan(parent=None, *, main=None):
     return {"target": target, "api_version": API_VERSION,
             "pages": ["Entities"] if main is not None else ["MyLibrary", "Entities"],
             "collections": ["Events", "Pages", "Entities"],
-            "views": ["Recent Events", "Recent Pages", "Entities"],
+            "views": ["Recent Events", "Entities"],
             "ui_required": ["Native New Event button creates and opens an Events page", "Move Recent Events into right column",
                             "Full width and side peek", "Phone order and offline New", "Entity page lock and permissions"]}
 
@@ -485,7 +484,7 @@ def _setup(vault, plan, client=None):
                           "properties": {"title": {"type": "title", "title": [rich("Entities")]}}})
     basics = {"Name": {"type": "title", "title": {}}, "Created": {"type": "created_time", "created_time": {}},
               "Edited": {"type": "last_edited_time", "last_edited_time": {}}}
-    schemas = {"events": dict(basics, Occurred={"type": "date", "date": {}}), "pages": basics,
+    schemas = {"events": dict(basics, Occurred={"type": "date", "date": {}}),
                "entities": {"Name": basics["Name"], "Entity ID": {"type": "rich_text", "rich_text": {}},
                             "Description": {"type": "rich_text", "rich_text": {}}, "Type": {"type": "select", "select": {}},
                             "Published Revision": {"type": "number", "number": {}}, "Published At": {"type": "date", "date": {}},
@@ -514,15 +513,15 @@ def _setup(vault, plan, client=None):
             state["resources"]["main"] = {"page_id": main_id, "url": main.get("url", page_url(main_id))}
             state["resources"]["entities_page"] = {"page_id": entities_page["id"], "url": entities_page.get("url", page_url(entities_page["id"]))}
             atomic_json(path, state)
-    for name, view_name in (("events", "Recent Events"), ("pages", "Recent Pages"), ("entities", "Entities")):
+    for name, view_name in (("events", "Recent Events"), ("entities", "Entities")):
         resource = state["resources"][name]
-        visible = {"Name", "Created"} if name == "events" else {"Name"} if name == "pages" else {"Name", "Description", "Type"}
+        visible = {"Name", "Created"} if name == "events" else {"Name", "Description", "Type"}
         payload = {"data_source_id": resource["data_source_id"], "name": view_name, "type": "list",
                    "create_database": {"parent": {"type": "page_id", "page_id": entities_page["id"] if name == "entities" else main_id}},
                    "configuration": {"type": "list", "properties": [{"property_id": pid, "visible": label in visible}
                                                 for label, pid in resource["properties"].items()]}}
-        if name != "entities":
-            payload["sorts"] = [{"property": resource["properties"]["Created" if name == "events" else "Edited"], "direction": "descending"}]
+        if name == "events":
+            payload["sorts"] = [{"property": resource["properties"]["Created"], "direction": "descending"}]
         view = create("view_" + name, "/views", payload)
         with writer_lock(vault, wait_seconds=30):
             state.update(read_json(path))
@@ -551,7 +550,7 @@ def _setup(vault, plan, client=None):
     children = [block("heading_1", "New Event"), block("paragraph", "写下一条想法、进展或决定。无需填写项目。"),
                 {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [rich("打开 Events →", state["resources"]["events"]["url"])]}},
                 {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [rich("Entities →", state["resources"]["entities_page"]["url"])]}},
-                block("paragraph", "这里只收取 Events 和 Pages。主页布局中的文字不会自动成为记录。")]
+                block("paragraph", "这里只收取 Events。主页布局中的文字不会自动成为记录。")]
     create("main_layout", f"/blocks/{main_id}/children", {"children": children}, method="PATCH")
     with writer_lock(vault, wait_seconds=30):
         state.update(read_json(path))

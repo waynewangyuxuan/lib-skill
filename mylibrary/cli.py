@@ -84,7 +84,7 @@ def run(args):
             if (args.vault / SETUP).exists():
                 settings = config(args.vault)
                 result["notion"] = {"workspace_id": workspace(client, settings["workspace_id"]), "resources": settings["resources"]}
-                for key in ("events", "pages", "entities"):
+                for key in ("events", "entities"):
                     client.request("GET", "/data_sources/" + settings["resources"][key]["data_source_id"])
             else:
                 result["notion"] = {"workspace_id": workspace(client), "status": "parent_required"}
