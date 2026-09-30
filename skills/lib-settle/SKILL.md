@@ -16,7 +16,7 @@ The input unit is an Event revision, not a daily heading. Multiple Events may up
 ## Process a frozen batch
 
 1. Run `mylibrary status`. If Notion input is configured, run `mylibrary collect`. A failed collection is a coverage gap, not an empty successful scan.
-2. Run `mylibrary freeze --output /tmp/lib-run/frozen.json --consumer settle`. Read its Event identities and coverage before loading bodies.
+2. Run `mylibrary freeze --output "$(mktemp -d)/frozen.json" --consumer settle` so runs never share a freeze file. Read its Event identities and coverage before loading bodies.
 3. For each input, first run `mylibrary resolve <page_id>` on every ID in its `mentions`. A resolved mention is a hard match and needs no broad candidate scan. Otherwise compare three to five Entity descriptions with `mylibrary search <topic> --scope entities --limit 5`. Resolve IDs, mappings, and aliases before opening selected bodies.
 4. Load the matching section of [source-playbooks.md](references/source-playbooks.md). Open only the required frozen artifacts and relevant typed neighbors. Give a reason before a second relation hop.
 5. Prepare complete Entity replacement files and one staging manifest outside the vault. Preserve Summary, Access, Context, Relations, types, and prior evidence. Use [runtime-schema.md](references/runtime-schema.md) and [consumer-interface.md](references/consumer-interface.md).

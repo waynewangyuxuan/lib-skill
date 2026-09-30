@@ -14,12 +14,12 @@ Use completed receipts and original evidence to explain what changed. Daily logs
 
 ## Daily review
 
-1. Run `mylibrary status`. Collect configured Notion input when connected. Record a collection failure as a coverage gap.
+1. Run `mylibrary status`. Collect configured Notion input when connected, unless `lib-settle` will collect in step 2. Record a collection failure as a coverage gap.
 2. If the request includes settling, run `lib-settle` on pending Event revisions. Otherwise inspect current receipts without mutating Entities.
 3. Read the selected day's completed runs and unresolved Events. Use the 04:00 boundary for historical dates. Retrieve touched Entity descriptions before opening bodies.
 4. Compare original sources with supported Context. List decisions, open work, necessary skips, `blocked`, `needs_review`, empty inputs, and source access gaps.
 5. Report publication state separately. A local apply can succeed while its Notion view remains unpublished or blocked by a human edit.
-6. Write the authorized review to `_reviews/` without rewriting historical work logs or consuming pending Events merely to produce a report.
+6. Write the authorized review to `_reviews/review-<M>-<D>.md` for the logical day, linking that day's work log. Do not rewrite historical work logs or consume pending Events merely to produce a report.
 
 ## Weekly review
 

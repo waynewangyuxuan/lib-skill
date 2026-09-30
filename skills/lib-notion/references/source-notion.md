@@ -7,11 +7,12 @@ Load this when an Event, reference, or question involves Notion. It says what th
 | Area | Role | Local copy |
 |---|---|---|
 | Events database | Wayne's input. One page is one Event identity. Each semantic edit becomes a new revision. | `_events/<event_id>/revisions/<n>/{body.md,raw.json,event.json}` plus `_sources/src_<same key>/snapshots/<n>/` |
-| Pages an Event mentions or links | Reference material, not input. Never pending, never a user decision. | `_sources/<source_id>/` with `role: reference` in `source.json` |
+| Watched workspace pages and database rows | Wayne's notes outside Events. The first pass is a non-pending baseline; each later edit is a pending `source_update` revision. | `_events/<event_id>/revisions/<n>/` with `input_kind: source_update`, structure in `_state/notion/watch.json` |
+| Pages an Event mentions or links, outside the watch area | Reference material, not input. Never pending, never a user decision. | `_sources/<source_id>/` with `role: reference` in `source.json` |
 | Entities database (`ENT <name>` pages) | Machine-published views of local Entities. Output only. | The local `_entities/*.md` file is the authority |
 | Main page and the Entities page | Layout. | Never collected |
 
-Anything else in the workspace is out of scope until an Event mentions or links it. Do not enumerate the workspace with Search. Notion does not guarantee Search is complete, and the collector never uses it.
+The watch area is every workspace root page and root database except the IDs in `watch.exclude` of `_state/notion/setup.json` (currently 日子 and 历史存档) and the MyLibrary page. Search only lists those roots. Everything below them is found by following child pages and database rows, and a page is reread only when its `last_edited_time` changes. Database templates are not returned by queries and are not watched.
 
 ## How to read it
 

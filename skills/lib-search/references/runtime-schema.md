@@ -12,7 +12,7 @@ _sources/<source_id>/source.json
 _sources/<source_id>/snapshots/<revision>/{body.md,raw.json,coverage.json}
 _sources/<source_id>/attachments/<sha256>
 _state/library.json
-_state/notion/{setup.json,entity-map.json,acquisition.json,last-publish.json}
+_state/notion/{setup.json,entity-map.json,acquisition.json,last-publish.json,watch.json}
 _state/consumption/<consumer>/<event_id>/<revision>.json
 _runs/<run_id>/frozen.json
 _runs/<run_id>/apply/{journal.json,files/<number>}
@@ -23,7 +23,7 @@ _index/
 
 A source with `role: reference` in `source.json` is a Notion page that an Event mentions or links. `collect` snapshots it once per edit and records `referenced_by`. It has no Event, is never pending, and never counts as a user decision. Read it from `body_path`. `search --scope sources` finds it. A reference that `collect` cannot read is reported as `unavailable`, not as absent.
 
-`provider`, `workspace_id`, and `resource_id` determine Event identity. Identical text on separate resources stays separate. Integer revisions identify immutable normalized evidence. Semantic changes include body, user properties, mention IDs, and actual attachment hashes. Signed file URLs, editor timestamps, and collector bookkeeping do not establish new knowledge.
+Each revision's `readiness` is `ready`, `empty`, or `baseline`. Only `ready` revisions are pending or can be frozen. `baseline` marks the first snapshot of a watched page, and pages edited before `baseline_at` in `watch.json` that appear later. `provider`, `workspace_id`, and `resource_id` determine Event identity. Identical text on separate resources stays separate. Integer revisions identify immutable normalized evidence. Semantic changes include body, user properties, mention IDs, and actual attachment hashes. Signed file URLs, editor timestamps, and collector bookkeeping do not establish new knowledge.
 
 `_index/` is rebuildable. Backup includes durable Entity, Event, source, and state files plus completed run artifacts. It excludes incomplete runs and the lock artifact. Recover incomplete work before claiming a backup covers its outputs and receipts.
 

@@ -12,9 +12,9 @@ Load the current source section after reading the frozen Event record. For provi
 
 ## A source update
 
-1. Compare the collected revision with the relevant earlier snapshot.
+1. Compare the collected revision with the relevant earlier snapshot, including a `baseline` revision. A page first seen after the baseline has no earlier snapshot; read it whole.
 2. Read changed body, user properties, mentions, and attachment versions. Edit timestamps or signed-URL rotation alone are insufficient.
-3. State what changed and why it affects the Entity. A source change is not a user decision.
+3. State what changed and why it affects the Entity. A watched Notion page last edited by Wayne (`raw.json` `page.last_edited_by`) holds Wayne's own notes: record its statements as his thinking, not as an external source. A note is still not a decision unless it says so. Other source changes are observations, not user decisions.
 4. Cite old and new snapshots when explaining a change. Resolve repeated updates to the same Entity ID.
 5. If a required block or attachment is inaccessible, leave the affected interpretation blocked. For an unaffected conclusion from partial coverage, add `coverage_ack` explaining why the gap cannot change it. Explain optional source reads that you skip.
 
