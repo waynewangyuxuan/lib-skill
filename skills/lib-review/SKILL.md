@@ -4,6 +4,8 @@ description: >
   Review MyLibrary Event processing, Entity changes, unresolved evidence, and
   publication state for a day or week. Use for "review today", "review week",
   "lib-review eod", or "lib-review eow".
+metadata:
+  runtime: mylibrary-tools>=3.1.0
 ---
 
 # Review receipts and unresolved work

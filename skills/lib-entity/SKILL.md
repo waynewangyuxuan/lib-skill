@@ -4,6 +4,8 @@ description: >
   Resolve and propose MyLibrary Entity identities, descriptions, Context, and
   typed Relations from frozen Events or sources. Use for entity extraction,
   entity updates, source checks, and on-demand migration.
+metadata:
+  runtime: mylibrary-tools>=3.1.0
 ---
 
 # Resolve and update Entities

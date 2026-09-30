@@ -3,6 +3,8 @@ name: lib-export
 description: >
   Capture the current session as a MyLibrary Event. Use for "export", "导出",
   "总结一下", "export result", "export detail", or "记录过程".
+metadata:
+  runtime: mylibrary-tools>=3.1.0
 ---
 
 # Capture a session Event

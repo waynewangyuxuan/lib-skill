@@ -4,6 +4,8 @@ description: >
   Retrieve MyLibrary context through Entity IDs, descriptions, typed Relations,
   and source snapshots. Use for "search for X", "what do I know about X",
   "context on X", "找一下X", or "关于X的信息".
+metadata:
+  runtime: mylibrary-tools>=3.1.0
 ---
 
 # Retrieve bounded Entity context

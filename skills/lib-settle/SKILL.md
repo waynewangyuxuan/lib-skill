@@ -5,6 +5,8 @@ description: >
   frozen source pack, staging, validation, and recoverable apply. Use for
   "settle", "settle today", "settle all unprocessed", or explicit historical
   forward and reverse reads.
+metadata:
+  runtime: mylibrary-tools>=3.1.0
 ---
 
 # Integrate pending Events

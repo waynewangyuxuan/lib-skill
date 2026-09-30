@@ -1,42 +1,40 @@
-# lib-skill 3.0
+# lib-skill 3.1
 
-MyLibrary captures Events, preserves their source evidence, and integrates supported knowledge into stable Entities. Local files are authoritative. Notion supplies configured Events and Pages inputs and fixed Entity output views.
+MyLibrary captures Events, preserves their source evidence, and integrates supported knowledge into stable Entities. Local files are authoritative. Notion supplies the Events database, a watched workspace area, and fixed Entity output pages.
 
-The upgrade preserves the existing 107 Entity pages, body sections, type vocabulary, typed Relations, historical work logs, and folder compilation. Migrate only the pilot Entities. Daily headings and scanner checkpoints do not establish consumption.
+Existing Entity pages, bodies, type vocabulary, typed Relations, and work logs stay compatible. A legacy Entity gains a stable ID and description when a settle first writes it.
 
-## Install the shared runtime
+## Install
 
-Use Python 3.11 or newer. Install the package once from a persistent local checkout.
+Two parts are installed separately. The Skills are Markdown folders that `npx skills` manages. The `mylibrary` command is a Python tool that the Skills call. Each Skill's `metadata.runtime` names the minimum runtime version it needs.
+
+```bash
+npx skills add waynewangyuxuan/lib-skill --skill '*' --global
+uv tool install git+https://github.com/waynewangyuxuan/lib-skill
+mylibrary --version
+```
+
+Add `--agent claude-code` or `--agent codex` to choose agents, or `--skill lib-search` for one Skill. `pipx install git+https://github.com/waynewangyuxuan/lib-skill` works in place of uv. Python 3.11 or newer is required.
+
+## Update
+
+```bash
+npx skills update
+uv tool upgrade mylibrary-tools
+```
+
+Update both. A Skill that requires a newer runtime than the installed one asks for the upgrade before it collects or writes.
+
+## Develop from a checkout
+
+A development checkout links the Skill folders to the repository and installs the runtime in editable mode, so edits take effect immediately.
 
 ```bash
 git clone https://github.com/waynewangyuxuan/lib-skill.git ~/lib-skill
-python3 -m venv ~/.venvs/mylibrary
-~/.venvs/mylibrary/bin/python -m pip install -e ~/lib-skill
-export PATH="$HOME/.venvs/mylibrary/bin:$PATH"
-mylibrary --help
+bash ~/lib-skill/install.sh all --python ~/.venvs/mylibrary/bin/python
 ```
 
-Keep that environment on the agent's PATH. The runtime uses PyYAML and Python's standard library. Editable installation follows the local checkout. Plugin or single-skill installation does not install the Python runtime automatically.
-
-## Install skills
-
-For a local checkout, the helper installs the runtime with the selected Python and links canonical skill directories. Existing directories are backed up before replacement.
-
-```bash
-bash ~/lib-skill/install.sh codex --python ~/.venvs/mylibrary/bin/python
-bash ~/lib-skill/install.sh claude-code --python ~/.venvs/mylibrary/bin/python
-bash ~/lib-skill/install.sh codex --dry-run
-```
-
-`--runtime-only` installs the Python package without linking skills. `--dry-run` makes no changes.
-
-Single-skill installation remains supported through the Agent Skills distribution.
-
-```bash
-npx skills add waynewangyuxuan/lib-skill --skill lib-search --agent codex --global --yes
-```
-
-Each skill includes its references. It depends on the one shared runtime rather than carrying a duplicate package. The portable `plugin.json`, Codex fallback manifest, and marketplace metadata remain available for plugin installation.
+`install.sh --dry-run` shows the plan without changes. Bump `mylibrary/__version__` and every Skill's `metadata.runtime` together; `tests/test_packaging.py` fails when they disagree.
 
 ## Process one batch
 

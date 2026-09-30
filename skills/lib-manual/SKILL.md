@@ -4,6 +4,8 @@ description: >
   Explain the MyLibrary Event-first workflow, runtime commands, storage,
   compatibility, and recovery. Use for "lib-manual", "vault manual",
   "how does the vault work", or a specific subsystem question.
+metadata:
+  runtime: mylibrary-tools>=3.1.0
 ---
 
 # Explain MyLibrary 3.0
@@ -21,7 +23,7 @@ The common route is capture or collect, freeze, compare Entity descriptions, loa
 
 Local files preserve Events, source snapshots, attachment bytes, Entity memory, mappings, and receipts. Notion provides the Events input, local copies of pages that Events reference, and fixed Entity output pages. Daily work logs remain readable history. The existing Entity pages, bodies, and type vocabulary remain compatible. A legacy Entity gains a stable ID and description when a settle first writes it. Untouched Entities stay as they are.
 
-The shared runtime is installed once with `python3 -m pip install -e <lib-skill-repo>`. Distributed skills include their references, not duplicate Python runtimes. A single-skill installation still requires `mylibrary` on the agent's PATH.
+Each Skill's `metadata.runtime` names the minimum `mylibrary-tools` version it needs. Before collecting or writing, run `mylibrary --version`. If the command is missing, ask Wayne to run `uv tool install git+https://github.com/waynewangyuxuan/lib-skill`. If it is older than required, ask for `uv tool upgrade mylibrary-tools`. Skills update separately with `npx skills update`. A development checkout uses `bash install.sh` instead.
 
 For source details, use `source-open` cache or historical mode before requesting a live read. Explain missing scope, unsupported content, and unverified client behavior. Do not infer a working phone route from a setup response.
 

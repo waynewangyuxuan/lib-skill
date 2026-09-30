@@ -4,6 +4,8 @@ description: >
   Connect and collect the configured Notion Events database as MyLibrary
   inputs, retain source evidence, and publish Entity views. Use for Notion
   setup, collection, source reads, or publication recovery.
+metadata:
+  runtime: mylibrary-tools>=3.1.0
 ---
 
 # Collect Notion inputs and publish Entity views
