@@ -72,7 +72,7 @@ def atomic_json(path, value):
 
 
 @contextmanager
-def writer_lock(vault, wait_seconds=0):
+def writer_lock(vault, wait_seconds=15):
     vault = Path(vault).resolve()
     state = vault / "_state"
     if state.is_symlink():
