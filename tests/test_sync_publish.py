@@ -278,10 +278,10 @@ class SyncTests(unittest.TestCase):
     def test_stray_asterisk_is_escaped_but_emphasis_survives(self):
         path = self.entity()
         path.write_text(path.read_text().replace("Known result",
-                        "lib-* skills keep **bold text** and *italic* with `a*b` code"))
+                        "lib-* skills keep **bold text** and *italic* with `a*b` code, **提出 `lib-catch`——想法**。"))
         page = self.result()["page_id"]
         body = self.client.markdown[page]
-        for expected in ("lib-\\* skills", "**bold text**", "*italic*", "`a*b`"):
+        for expected in ("lib-\\* skills", "**bold text**", "*italic*", "`a*b`", "**提出 `lib-catch`——想法**"):
             self.assertIn(expected, body)
 
     def test_lost_create_is_reconciled_once(self):

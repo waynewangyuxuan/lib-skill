@@ -23,15 +23,17 @@ def canonical_markdown(value):
     return re.sub(r"\n{3,}", "\n\n", "\n".join(line.rstrip() for line in value.replace("\r\n", "\n").splitlines())).strip()
 
 
+CODE_SPAN = re.compile(r"`[^`]*`")
+BOLD = re.compile(r"\*\*(?:(?!\*\*).)+?\*\*")
+ITALIC = re.compile(r"(?<![\w*])\*(?=[^\s*])[^*]*?(?<=[^\s*])\*(?![\w*])")
+
+
 def _escape_stray_asterisks(markdown):
     def line(value):
-        parts = value.split("`")
-        for index in range(0, len(parts), 2):
-            kept = {position for match in re.finditer(r"\*\*[^*\n]+?\*\*|(?<![\w*])\*(?=\S)[^*\n]*?(?<=\S)\*(?![\w*])", parts[index])
-                    for position in range(match.start(), match.end())}
-            parts[index] = "".join("\\*" if char == "*" and position not in kept else char
-                                   for position, char in enumerate(parts[index]))
-        return "`".join(parts)
+        spans = lambda pattern: [range(match.start(), match.end()) for match in pattern.finditer(value)]
+        kept = {position for span in spans(CODE_SPAN) + spans(BOLD) for position in span}
+        kept |= {position for span in spans(ITALIC) if not kept.intersection(span) for position in span}
+        return "".join("\\*" if char == "*" and position not in kept else char for position, char in enumerate(value))
     return "\n".join(line(value) for value in markdown.split("\n"))
 
 
