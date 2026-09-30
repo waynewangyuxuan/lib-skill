@@ -226,8 +226,12 @@ def collect_watch(client, library, setup, skip):
     excluded = {notion_id(item) for item in setup["watch"].get("exclude", [])} | skip
     machine = {notion_id(setup["resources"][key]["data_source_id"]) for key in ("events", "entities")}
     path = library._path("_state/notion/watch.json")
-    known = read_json(path) if path.exists() else {}
-    baseline = not known
+    saved = read_json(path) if path.exists() else {}
+    known, baseline = saved.get("pages", {}), not saved.get("baseline_complete")
+
+    def save(pages, complete, wait_seconds):
+        with writer_lock(library.vault, wait_seconds=wait_seconds):
+            atomic_json(path, {"baseline_complete": complete, "pages": pages})
     queue = [(notion_id(page["id"]), page.get("last_edited_time")) for page in workspace_roots(client)]
     structure, observed, failures = {}, [], []
     while queue:
@@ -259,12 +263,18 @@ def collect_watch(client, library, setup, skip):
                     if notion_id(source["id"]) not in machine:
                         queue += [(notion_id(row["id"]), row.get("last_edited_time")) for row in client.query(source["id"])]
             queue += [(child, None) for child in entry["children"]]
-        except (NotionError, ValueError) as error:
-            failures.append({"page_id": identifier, "status": "unreachable", "reason": str(error)})
+        except (NotionError, ValueError, BlockingIOError) as error:
+            busy = isinstance(error, BlockingIOError)
+            failures.append({"page_id": identifier, "status": "busy" if busy else "unreachable",
+                             "reason": "Vault writer lock busy; retried on the next collect" if busy else str(error)})
             if cached:
                 structure[identifier] = cached
-    with writer_lock(library.vault):
-        atomic_json(path, structure)
+        if len(structure) % 25 == 0 and identifier in structure:
+            try:
+                save(dict(known, **structure), not baseline, 0)
+            except BlockingIOError:
+                pass
+    save(structure, True, 120)
     return {"baseline": baseline, "pages": len(structure), "observed": observed, "failures": failures,
             "not_observed": sorted(set(known) - set(structure))}, set(structure)
 
