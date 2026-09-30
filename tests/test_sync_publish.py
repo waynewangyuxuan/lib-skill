@@ -142,7 +142,7 @@ class SyncTests(unittest.TestCase):
 
     def entity(self, name="Example", revision=1):
         path = self.vault / "_entities/example.md"
-        path.write_text(f"---\nid: ent_example\nname: {name}\ntype: concept\ndescription: A personal example\nrevision: {revision}\n---\n\n## Summary\n\nKnown result\n\n## Access\n\n[[local-note]]\n\n## Context\n\n- First original source [原页](https://app.notion.com/p/Some-Title-3ea5f7692d8980c7ab79cfa09dad5f27), [[_events/evt_local/revisions/1/body.md]]\n\n## Relations\n", encoding="utf-8")
+        path.write_text(f"---\nid: ent_example\nname: {name}\ntype: concept\ndescription: A personal example\nrevision: {revision}\ntags: [research, reading]\nstate: active\n---\n\n## Summary\n\nKnown result\n\n## Access\n\n[[local-note]]\n\n## Context\n\n- First original source [原页](https://app.notion.com/p/Some-Title-3ea5f7692d8980c7ab79cfa09dad5f27), [[_events/evt_local/revisions/1/body.md]]\n\n## Relations\n", encoding="utf-8")
         return path
 
     def result(self):
@@ -256,6 +256,8 @@ class SyncTests(unittest.TestCase):
         self.assertEqual(page["properties"]["Name"]["title"][0]["text"]["content"], "ENT Example")
         self.assertEqual(page["properties"]["Event Count"]["number"], 0)
         self.assertIsNone(page["properties"]["Last Event"]["date"])
+        self.assertEqual([item["name"] for item in page["properties"]["Tags"]["multi_select"]], ["reading", "research"])
+        self.assertEqual(page["properties"]["State"]["select"]["name"], "active")
         self.assertIn("name: Example", path.read_text())
         self.assertEqual(self.result()["status"], "unchanged")
 
@@ -462,6 +464,7 @@ class SetupTests(unittest.TestCase):
             first = setup(vault, parent, client=client)
             source = first["resources"]["entities"]["data_source_id"]
             self.assertEqual(client.sources[source]["properties"]["Days Idle"]["type"], "formula")
+            self.assertEqual(client.sources[source]["properties"]["Tags"]["type"], "multi_select")
             charts = [call[2]["configuration"]["chart_type"] for call in client.calls
                       if call[:2] == ("POST", "/views") and call[2]["type"] == "chart"]
             self.assertEqual(sorted(charts), ["bar", "column", "donut", "number"])
