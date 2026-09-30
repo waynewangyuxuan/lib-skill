@@ -207,6 +207,39 @@ def read_page(client, identifier):
                          "gaps": gaps, "continuation": [item["continue"] for item in gaps]}}
 
 
+def notion_links(body):
+    found = set()
+    for url in re.findall(r"https://(?:www\.|app\.)?notion\.(?:so|com)/[^\s)\]]+", body):
+        try:
+            found.add(notion_id(url))
+        except ValueError:
+            continue
+    return found
+
+
+def snapshot_reference(client, library, workspace_id, target, events, inputs):
+    result = {"page_id": target, "referenced_by": events}
+    try:
+        page = client.request("GET", "/pages/" + target)
+        parent = page.get("parent", {}).get("data_source_id")
+        if parent and notion_id(parent) in inputs:
+            return dict(result, status="excluded", reason="Configured input or machine page")
+        known = library.reference_record("notion", workspace_id, target)
+        if known and known.get("last_edited_time") == page.get("last_edited_time"):
+            known = library.cite(known["id"], events)
+            return dict(result, status="unchanged", source_id=known["id"], revision=known["revision"],
+                        body_path=known["body_path"])
+        captured = read_page(client, target)
+        stored = library.reference("notion", workspace_id, target, captured["body"], name=title(page),
+                                   edited=page.get("last_edited_time"), referenced_by=events, raw=captured["raw"],
+                                   attachments=captured["attachments"], coverage=captured["coverage"],
+                                   source_url=page.get("url", page_url(target)))
+        return dict(result, status="snapshotted" if stored["changed"] else "unchanged", source_id=stored["id"],
+                    revision=stored["revision"], body_path=stored["body_path"])
+    except NotionError as error:
+        return dict(result, status="unavailable", reason=str(error))
+
+
 def collect(vault, client=None):
     vault, client = Path(vault).resolve(), client or NotionClient()
     setup = config(vault)
@@ -215,7 +248,7 @@ def collect(vault, client=None):
     mapping_path = Library(vault)._path("_state/notion/entity-map.json")
     mapped = read_json(mapping_path) if mapping_path.exists() else {}
     machine_pages = {notion_id(item["page_id"]) for item in mapped.values()}
-    library, observations, failures, seen = Library(vault), [], [], set()
+    library, observations, failures, seen, cited = Library(vault), [], [], set(), {}
     for group, kind in (("events", "event"), ("pages", "source_update")):
         source = notion_id(setup["resources"][group]["data_source_id"])
         try:
@@ -245,15 +278,23 @@ def collect(vault, client=None):
                     source_url=captured["page"].get("url", page_url(identifier)))
                 observations.append({"event_id": envelope["event_id"], "revision": envelope["revision"],
                                      "page_id": identifier, "coverage": captured["coverage"]})
+                for target in set(captured["mentions"]) | notion_links(captured["body"]):
+                    cited.setdefault(target, set()).add(envelope["event_id"])
             except (NotionError, ValueError) as error:
                 failures.append({"page_id": identifier, "status": "unreachable_or_moved", "reason": str(error)})
+    inputs = {notion_id(item["data_source_id"]) for key, item in setup["resources"].items()
+              if key in {"events", "pages", "entities"}}
+    skip = seen | machine_pages | {notion_id(setup["resources"][key]["page_id"])
+                                   for key in ("main", "entities_page") if key in setup["resources"]}
+    references = [snapshot_reference(client, library, setup["workspace_id"], target, sorted(events), inputs)
+                  for target, events in sorted(cited.items()) if target not in skip]
     state_path = library._path("_state/notion/acquisition.json")
     with writer_lock(vault):
         previous = read_json(state_path) if state_path.exists() else {}
         previously_seen = set(previous.get("known_page_ids", []))
         report = {"schema_version": 1, "checked_at": timestamp(), "observations": observations,
                   "failures": failures, "not_observed": sorted(previously_seen - seen),
-                  "known_page_ids": sorted(previously_seen | seen)}
+                  "known_page_ids": sorted(previously_seen | seen), "references": references}
         atomic_json(state_path, report)
     report["pending"] = library.pending()
     return report

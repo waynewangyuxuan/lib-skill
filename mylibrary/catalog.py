@@ -491,13 +491,17 @@ def _score(item: dict, query: str) -> tuple[int, list[str]]:
 def _event_hits(vault: Path, query: str, kinds: set[str]) -> list:
     tokens, phrase = _tokens(query), _normalize(query)
     from .storage import Library
-    root = vault / "_events"
-    if not tokens or not kinds or not root.exists():
+    if not tokens or not kinds:
         return []
-    pending = {(item["event_id"], item["revision"]) for item in Library(vault).pending()}
+    pending = {(item["event_id"], item["revision"]) for item in Library(vault).pending()} if kinds - {"reference"} else set()
+    records = [json.loads(path.read_text(encoding="utf-8")) for path in sorted(vault.glob("_events/*/event.json"))]
+    if "reference" in kinds:
+        records += [dict(source, input_kind="reference", event_id=None, readiness="reference")
+                    for source in (json.loads(path.read_text(encoding="utf-8"))
+                                   for path in sorted(vault.glob("_sources/*/source.json")))
+                    if source.get("role") == "reference"]
     hits = []
-    for path in sorted(root.glob("*/event.json")):
-        event = json.loads(path.read_text(encoding="utf-8"))
+    for event in records:
         if event.get("input_kind") not in kinds:
             continue
         body = vault / event["body_path"]
@@ -509,11 +513,13 @@ def _event_hits(vault: Path, query: str, kinds: set[str]) -> list:
                      if any(token in _normalize(value) for token in tokens)), None)
         score = (500 if phrase in text else 200) + sum(text.count(token) for token in tokens)
         hits.append((score, {
-            "kind": "event" if event["input_kind"] == "event" else "source",
-            "event_id": event["event_id"], "revision": event["revision"], "name": event.get("name", ""),
+            "kind": {"event": "event", "source_update": "source"}.get(event["input_kind"], "reference"),
+            "event_id": event["event_id"], "source_id": event.get("source_id", event.get("id")),
+            "revision": event["revision"], "name": event.get("name", ""),
             "path": event["body_path"], "line": line, "snippet": lines[line - 1].strip()[:200] if line else "",
             "source_url": event.get("source_url"),
-            "settled": event.get("readiness") == "ready" and (event["event_id"], event["revision"]) not in pending}))
+            "settled": None if event["input_kind"] == "reference"
+            else event.get("readiness") == "ready" and (event["event_id"], event["revision"]) not in pending}))
     return hits
 
 
@@ -542,7 +548,8 @@ def search(vault: Path, query, limit: int = 5, scope=None) -> list:
                 scored.append((100 + sum(normalized.count(token) for token in tokens),
                                item, ["full_text"] ))
     named = "personal" if scope is None else str(scope) if isinstance(scope, (str, Path)) else ""
-    selected = {"personal": {"event"}, "sources": {"source_update"}, "all": {"event", "source_update"}}.get(named, set())
+    selected = {"personal": {"event"}, "sources": {"source_update", "reference"},
+                "all": {"event", "source_update", "reference"}}.get(named, set())
     scored = [(score, dict(_public(item), kind="entity"), reasons) for score, item, reasons in scored]
     scored += [(score, hit, ["full_text"]) for score, hit in _event_hits(vault, query, selected)]
     scored.sort(key=lambda row: (-row[0], _normalize(row[1]["name"]), row[1]["path"]))

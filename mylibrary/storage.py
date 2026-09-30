@@ -221,17 +221,7 @@ class Library:
             raise ValueError("Formal output must be _entities/<entity>.md")
         return self._path(relative)
 
-    def record(self, provider, workspace_id, resource_id, body, *, name="", input_kind="event",
-               occurred_at=None, authorship="unknown", mentions=(), semantic=None, raw=None,
-               attachments=(), coverage=None, source_url=None):
-        if not all(isinstance(value, str) and value for value in (provider, workspace_id, resource_id)):
-            raise ValueError("Provider, workspace and resource identity required")
-        if not isinstance(body, str) or input_kind not in {"event", "source_update"}:
-            raise ValueError("Invalid Event body or kind")
-        identity = {"provider": provider, "workspace_id": workspace_id, "resource_id": resource_id}
-        key = digest(_canonical(identity))[:32]
-        event_id, source_id = "evt_" + key, "src_" + key
-        body = body.replace("\r\n", "\n").replace("\r", "\n")
+    def _assets(self, source_id, attachments):
         assets, asset_bytes = [], {}
         for attachment in attachments:
             item = dict(attachment)
@@ -250,6 +240,71 @@ class Library:
             else:
                 asset.update(status=item.get("status", "unavailable"), gap=item.get("gap", "bytes not acquired"))
             assets.append(asset)
+        return assets, asset_bytes
+
+    def _write_assets(self, source_id, asset_bytes):
+        for sha, content in asset_bytes.items():
+            target = self._path(f"_sources/{source_id}/attachments/{sha}")
+            if target.exists() and digest(target) != sha:
+                raise ValueError("Attachment hash conflict")
+            if not target.exists():
+                _atomic_bytes(target, content)
+
+    def _reference_id(self, provider, workspace_id, resource_id):
+        identity = {"provider": provider, "workspace_id": workspace_id, "resource_id": resource_id}
+        return identity, "src_" + digest(_canonical(dict(identity, role="reference")))[:32]
+
+    def reference_record(self, provider, workspace_id, resource_id):
+        path = self._path(f"_sources/{self._reference_id(provider, workspace_id, resource_id)[1]}/source.json")
+        return read_json(path) if path.exists() else None
+
+    def cite(self, source_id, referenced_by):
+        with writer_lock(self.vault):
+            path = self._path(f"_sources/{_slug(source_id)}/source.json")
+            record = read_json(path)
+            record.update(referenced_by=sorted(set(referenced_by)), observed_at=timestamp())
+            atomic_json(path, record)
+        return record
+
+    def reference(self, provider, workspace_id, resource_id, body, *, name, edited, referenced_by,
+                  raw=None, attachments=(), coverage=None, source_url=None):
+        identity, source_id = self._reference_id(provider, workspace_id, resource_id)
+        assets, asset_bytes = self._assets(source_id, attachments)
+        coverage = coverage or {"status": "complete", "gaps": []}
+        content_hash = digest(_canonical({"body": body, "name": name, "attachments": assets,
+                                          "coverage": _semantic_coverage(coverage)}))
+        with writer_lock(self.vault):
+            path = self._path(f"_sources/{source_id}/source.json")
+            record = read_json(path) if path.exists() else {"revision": 0}
+            changed = record.get("content_sha256") != content_hash
+            revision = record["revision"] + 1 if changed else record["revision"]
+            relative = f"_sources/{source_id}/snapshots/{revision}"
+            if changed:
+                self._write_assets(source_id, asset_bytes)
+                _atomic_bytes(self._path(relative + "/body.md"), body.encode())
+                atomic_json(self._path(relative + "/raw.json"), _safe_raw(raw or {}))
+                atomic_json(self._path(relative + "/coverage.json"), coverage)
+            record = {"id": source_id, "role": "reference", "identity": identity, "name": name,
+                      "source_url": source_url, "revision": revision, "content_sha256": content_hash,
+                      "last_edited_time": edited, "referenced_by": sorted(set(referenced_by)),
+                      "body_path": relative + "/body.md", "attachments": assets, "coverage": coverage,
+                      "observed_at": timestamp()}
+            atomic_json(path, record)
+        return dict(record, changed=changed)
+
+    def record(self, provider, workspace_id, resource_id, body, *, name="", input_kind="event",
+               occurred_at=None, authorship="unknown", mentions=(), semantic=None, raw=None,
+               attachments=(), coverage=None, source_url=None):
+        if not all(isinstance(value, str) and value for value in (provider, workspace_id, resource_id)):
+            raise ValueError("Provider, workspace and resource identity required")
+        if not isinstance(body, str) or input_kind not in {"event", "source_update"}:
+            raise ValueError("Invalid Event body or kind")
+        identity = {"provider": provider, "workspace_id": workspace_id, "resource_id": resource_id}
+        key = digest(_canonical(identity))[:32]
+        event_id, source_id = "evt_" + key, "src_" + key
+        body = body.replace("\r\n", "\n").replace("\r", "\n")
+        assets, asset_bytes = self._assets(source_id, attachments)
+
         semantic_data = dict(semantic or {})
         semantic_data.pop("normalizer_version", None)
         coverage = coverage or {"status": "complete", "gaps": []}
@@ -284,12 +339,7 @@ class Library:
                         "body_path": relative + "/body.md", "raw_path": relative + "/raw.json",
                         "source_url": source_url, "attachments": assets, "coverage": coverage,
                         "readiness": "ready" if body.strip() or assets else "empty"}
-            for sha, content in asset_bytes.items():
-                target = self._path(f"_sources/{source_id}/attachments/{sha}")
-                if target.exists() and digest(target) != sha:
-                    raise ValueError("Attachment hash conflict")
-                if not target.exists():
-                    _atomic_bytes(target, content)
+            self._write_assets(source_id, asset_bytes)
             evidence_raw = _safe_raw(raw or {})
             snapshot = self._path(source_relative)
             snapshot.mkdir(parents=True, exist_ok=True)
