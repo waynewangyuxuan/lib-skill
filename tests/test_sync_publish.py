@@ -34,7 +34,7 @@ class MemoryNotion:
     def __init__(self):
         self.pages, self.blocks, self.markdown, self.sources = {}, {}, {}, {}
         self.calls, self.next_id = [], 100
-        self.database_sources = {}
+        self.database_sources, self.database_parents = {}, {}
         self.lose_create = False
         self.lose_body = False
         self.hide_query = False
@@ -76,10 +76,16 @@ class MemoryNotion:
         if path == "/users/me":
             return {"bot": {"workspace_id": WORKSPACE}}
         if method == "POST" and path == "/search":
+            kind = payload["filter"]["value"]
+            if kind == "data_source":
+                return {"results": [{"object": "data_source", "id": source, "parent": {"type": "database_id", "database_id": database}}
+                                    for database, source in self.database_sources.items()], "has_more": False}
             return {"results": [copy.deepcopy(page) for page in self.pages.values()
                                 if page.get("parent", {}).get("type") == "workspace"], "has_more": False}
         if method == "GET" and path.startswith("/databases/"):
-            return {"id": path.split("/")[2], "data_sources": [{"id": self.database_sources[path.split("/")[2]]}]}
+            database = path.split("/")[2]
+            return {"id": database, "data_sources": [{"id": self.database_sources[database]}],
+                    "parent": self.database_parents.get(database, {"type": "page_id", "page_id": identifier(1)})}
         if method == "GET" and path.startswith("/data_sources/"):
             return copy.deepcopy(self.sources[path.split("/")[-1]])
         if method == "GET" and path.endswith("/markdown"):
@@ -224,6 +230,16 @@ class SyncTests(unittest.TestCase):
         self.assertEqual([(item["page_id"], item["revision"]) for item in edited["watch"]["observed"]], [(note, 2)])
         self.assertEqual([(event["name"], event["revision"], event["input_kind"]) for event in edited["pending"]],
                          [("Note", 2, "source_update")])
+
+    def test_watch_includes_databases_at_the_workspace_root(self):
+        settings = read_json(self.vault / SETUP)
+        settings["watch"] = {"exclude": []}
+        atomic_json(self.vault / SETUP, settings)
+        self.client.database_sources[identifier(90)] = identifier(91)
+        self.client.database_parents[identifier(90)] = {"type": "workspace", "workspace": True}
+        person = self.watched_page(92, {"type": "data_source_id", "data_source_id": identifier(91)}, "Contact notes")
+        result = collect(self.vault, self.client)
+        self.assertEqual([item["page_id"] for item in result["watch"]["observed"]], [person])
 
     def test_busy_vault_skips_one_watch_page_without_losing_the_rest(self):
         settings = read_json(self.vault / SETUP)
