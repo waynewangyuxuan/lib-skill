@@ -164,6 +164,7 @@ class SyncTests(unittest.TestCase):
         self.assertEqual(len(result["observations"]), 1)
         envelope = next(event for event in result["pending"] if event["identity"]["resource_id"] == one)
         self.assertEqual(envelope["mentions"], [identifier(50)])
+        self.assertEqual(envelope["authorship"], "wayne")
         self.assertEqual((self.vault / envelope["attachments"][0]["path"]).read_bytes(), b"actual image bytes")
         self.client.blocks[one][1]["image"]["file"]["url"] = "https://s3.amazonaws.com/a?X-Amz-Signature=second"
         self.client.pages[one]["properties"]["Edited"]["last_edited_time"] = "later"
@@ -230,6 +231,7 @@ class SyncTests(unittest.TestCase):
         self.assertEqual([(item["page_id"], item["revision"]) for item in edited["watch"]["observed"]], [(note, 2)])
         self.assertEqual([(event["name"], event["revision"], event["input_kind"]) for event in edited["pending"]],
                          [("Note", 2, "source_update")])
+        self.assertEqual(edited["pending"][0]["authorship"], "wayne")
 
     def test_watch_includes_databases_at_the_workspace_root(self):
         settings = read_json(self.vault / SETUP)
