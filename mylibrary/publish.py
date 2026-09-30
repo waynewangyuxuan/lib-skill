@@ -10,7 +10,7 @@ import re
 from .catalog import parse_entity
 from .notion import NotionClient, NotionError, UncertainWrite, rich
 from .storage import Library, atomic_json, digest, read_json, timestamp, writer_lock
-from .sync import config, notion_id, page_url, workspace
+from .sync import config, notion_id, page_url, refresh_status, workspace
 
 MAP = "_state/notion/entity-map.json"
 TITLE_PREFIX = "ENT "
@@ -279,4 +279,5 @@ def publish(vault, entity_ids=None, client=None):
     report = {"checked_at": timestamp(), "results": results}
     with writer_lock(vault, wait_seconds=30):
         atomic_json(Library(vault)._path("_state/notion/last-publish.json"), report)
+    report["status_line"] = refresh_status(vault, client)
     return report
