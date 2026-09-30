@@ -214,6 +214,7 @@ def publish_one(vault, path, client, setup, activity=None):
         previous_remote = ledger.get("remote_sha256")
         previous_properties = ledger.get("properties_sha256")
         pending_body = ledger.get("desired_markdown")
+        interrupted = ledger.get("status") in {"pending", "pending_async", "retryable"}
         ours = remote_hash == previous_remote or _text(remote_body) in {_text(markdown), _text(pending_body or markdown)}
         acceptable_properties = {previous_properties, ledger.get("initial_properties_sha256"), wanted_properties_hash}
         initial_empty_body = (not remote_body and not pending_body
@@ -224,7 +225,9 @@ def publish_one(vault, path, client, setup, activity=None):
                 atomic_json(conflict, {"page_id": identifier, "markdown": remote_body, "properties": _properties(page),
                                        "expected_remote_sha256": previous_remote, "local_sha256": digest(path)})
             return save(status="needs_review", reason="Machine page contains a human or unrecognized edit", conflict_path=str(conflict))
-        if ledger.get("target_hash") == payload_hash and ledger.get("status") == "published" and remote_hash == previous_remote and _properties(page, IDENTITY + ACTIVITY) == wanted_all:
+        if (ledger.get("target_hash") == payload_hash and ledger.get("status") == "published"
+                and ledger.get("written_sha256") == digest(markdown) and remote_hash == previous_remote
+                and _properties(page, IDENTITY + ACTIVITY) == wanted_all):
             return dict(ledger, status="unchanged")
         local_sha = digest(path)
         intent = {"schema_version": 1, "entity_id": entity_id, "page_id": identifier, "target_hash": payload_hash,
@@ -239,7 +242,7 @@ def publish_one(vault, path, client, setup, activity=None):
         save(status="pending", page_id=identifier, target_hash=payload_hash, local_sha256=local_sha,
              desired_markdown=markdown, intent_path=str(intent_path.relative_to(vault)))
         try:
-            sent = digest(markdown) in {ledger.get("written_sha256"), pending_body and digest(pending_body)}
+            sent = ledger.get("written_sha256") == digest(markdown) or (interrupted and pending_body == markdown)
             if not sent or _text(remote_body) != _text(markdown):
                 response = client.request("PATCH", "/pages/" + identifier + "/markdown",
                       {"type": "replace_content", "replace_content": {"new_str": markdown}, "allow_async": False})
