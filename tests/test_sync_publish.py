@@ -275,6 +275,15 @@ class SyncTests(unittest.TestCase):
         self.assertEqual(again["status"], "published")
         self.assertEqual(page["properties"]["Name"]["title"][0]["text"]["content"], "ENT Example")
 
+    def test_stray_asterisk_is_escaped_but_emphasis_survives(self):
+        path = self.entity()
+        path.write_text(path.read_text().replace("Known result",
+                        "lib-* skills keep **bold text** and *italic* with `a*b` code"))
+        page = self.result()["page_id"]
+        body = self.client.markdown[page]
+        for expected in ("lib-\\* skills", "**bold text**", "*italic*", "`a*b`"):
+            self.assertIn(expected, body)
+
     def test_lost_create_is_reconciled_once(self):
         self.entity()
         self.client.lose_create = True
