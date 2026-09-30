@@ -23,6 +23,18 @@ def canonical_markdown(value):
     return re.sub(r"\n{3,}", "\n\n", "\n".join(line.rstrip() for line in value.replace("\r\n", "\n").splitlines())).strip()
 
 
+def _escape_stray_asterisks(markdown):
+    def line(value):
+        parts = value.split("`")
+        for index in range(0, len(parts), 2):
+            kept = {position for match in re.finditer(r"\*\*[^*\n]+?\*\*|(?<![\w*])\*(?=\S)[^*\n]*?(?<=\S)\*(?![\w*])", parts[index])
+                    for position in range(match.start(), match.end())}
+            parts[index] = "".join("\\*" if char == "*" and position not in kept else char
+                                   for position, char in enumerate(parts[index]))
+        return "`".join(parts)
+    return "\n".join(line(value) for value in markdown.split("\n"))
+
+
 def _text(markdown):
     markdown = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", markdown)
     return re.sub(r"[\s*`\\]", "", markdown)
@@ -94,7 +106,7 @@ def render(vault, metadata, body, mappings):
     result = re.sub(r"\[\[([^\]]+)\]\]", link, result)
     result = re.sub(r"\[[^\]]*\]\((?:file://|/Users/|/private/)[^)]*\)", "仅本地可用", result)
     result += "本地 Entity ID `" + metadata["id"] + "`。\n"
-    return canonical_markdown(result)
+    return canonical_markdown(_escape_stray_asterisks(result))
 
 
 @contextmanager
