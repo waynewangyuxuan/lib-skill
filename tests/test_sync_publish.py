@@ -4,6 +4,7 @@ from pathlib import Path
 import re
 import tempfile
 import unittest
+import unittest.mock
 import uuid
 
 from mylibrary.notion import NotionError, UncertainWrite, rich
@@ -223,6 +224,27 @@ class SyncTests(unittest.TestCase):
         self.assertEqual([(item["page_id"], item["revision"]) for item in edited["watch"]["observed"]], [(note, 2)])
         self.assertEqual([(event["name"], event["revision"], event["input_kind"]) for event in edited["pending"]],
                          [("Note", 2, "source_update")])
+
+    def test_busy_vault_skips_one_watch_page_without_losing_the_rest(self):
+        settings = read_json(self.vault / SETUP)
+        settings["watch"] = {"exclude": []}
+        atomic_json(self.vault / SETUP, settings)
+        root = self.watched_page(60, {"type": "workspace", "workspace": True}, "Study root")
+        note = self.watched_page(61, {"type": "page_id", "page_id": root}, "Note body")
+        self.client.blocks[root].append({"id": note, "type": "child_page", "child_page": {"title": "Note"}})
+        original = Library.record
+
+        def busy_for_note(library, provider, workspace_id, resource_id, body, **kwargs):
+            if resource_id == note:
+                raise BlockingIOError("writer lock held")
+            return original(library, provider, workspace_id, resource_id, body, **kwargs)
+
+        with unittest.mock.patch.object(Library, "record", busy_for_note):
+            first = collect(self.vault, self.client)
+        self.assertEqual([item["page_id"] for item in first["watch"]["observed"]], [root])
+        self.assertEqual([(item["page_id"], item["status"]) for item in first["watch"]["failures"]], [(note, "busy")])
+        again = collect(self.vault, self.client)
+        self.assertEqual([item["page_id"] for item in again["watch"]["observed"]], [note])
 
     def test_empty_new_page_then_edit_and_missing_attachment(self):
         page = self.client.add_page(12, text="")
