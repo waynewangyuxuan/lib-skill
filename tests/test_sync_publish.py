@@ -284,6 +284,13 @@ class SyncTests(unittest.TestCase):
         for expected in ("lib-\\* skills", "**bold text**", "*italic*", "`a*b`", "**提出 `lib-catch`——想法**"):
             self.assertIn(expected, body)
 
+    def test_formatting_only_change_is_published(self):
+        path = self.entity()
+        page = self.result()["page_id"]
+        path.write_text(path.read_text().replace("Known result", "**Known** result").replace("revision: 1", "revision: 2"))
+        self.assertEqual(self.result()["status"], "published")
+        self.assertIn("**Known** result", self.client.markdown[page])
+
     def test_lost_create_is_reconciled_once(self):
         self.entity()
         self.client.lose_create = True
