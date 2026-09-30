@@ -105,6 +105,9 @@ class MemoryNotion:
             for label, prop in payload["properties"].items():
                 source["properties"][label] = dict(prop, id=label)
             return copy.deepcopy(source)
+        if method == "PATCH" and path.startswith("/blocks/") and path.count("/") == 2:
+            self.status_text = payload["paragraph"]["rich_text"][0]["text"]["content"]
+            return {"id": path.split("/")[2]}
         if method == "PATCH" and path.endswith("/children"):
             return {"results": [dict(item, id=identifier(self.next_id + index)) for index, item in enumerate(payload["children"])]}
         if method == "PATCH" and path.endswith("/markdown"):
@@ -185,6 +188,19 @@ class SyncTests(unittest.TestCase):
         self.client.pages[doc]["last_edited_time"] = "later"
         third = {item["page_id"]: item for item in collect(self.vault, self.client)["references"]}
         self.assertEqual((third[doc]["status"], third[doc]["revision"]), ("snapshotted", 2))
+
+    def test_status_line_reports_last_collect_and_publish(self):
+        settings = read_json(self.vault / SETUP)
+        settings["status_block_id"] = identifier(99)
+        atomic_json(self.vault / SETUP, settings)
+        self.client.add_page(10)
+        collect(self.vault, self.client)
+        self.assertIn("待处理 1 条", self.client.status_text)
+        self.assertNotIn("上次发布", self.client.status_text)
+        self.entity()
+        self.result()
+        self.assertIn("上次发布", self.client.status_text)
+        self.assertIn("1 个 Entity 已同步", self.client.status_text)
 
     def test_empty_new_page_then_edit_and_missing_attachment(self):
         page = self.client.add_page(12, text="")
