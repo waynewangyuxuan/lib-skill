@@ -3,7 +3,7 @@ name: lib-entity
 description: >
   Resolve and propose MyLibrary Entity identities, descriptions, Context, and
   typed Relations from frozen Events or sources. Use for entity extraction,
-  entity updates, source checks, and pilot migration.
+  entity updates, source checks, and on-demand migration.
 ---
 
 # Resolve and update Entities
@@ -13,7 +13,7 @@ Keep the existing Entity registry and ontology. Stable identity is the referent,
 ## Resolve before creating
 
 1. Run `mylibrary resolve <id-or-ref>` when an ID or mapped Notion page is known.
-2. Otherwise run `mylibrary search <topic> --limit 5`. Compare descriptions, names, and aliases before opening candidate bodies.
+2. Otherwise run `mylibrary search <topic> --scope entities --limit 5`. Compare descriptions, names, and aliases before opening candidate bodies.
 3. Read the selected Summary, Access, Context, and relevant Relations. Use `mylibrary neighbors <id>` for needed typed edges. Record a reason before two-hop expansion.
 4. Reuse the existing Entity when references name the same thing. Ambiguous referents remain `needs_review`. Do not mint a page to avoid resolving a collision.
 

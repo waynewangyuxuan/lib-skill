@@ -2,7 +2,7 @@
 name: lib-notion
 description: >
   Connect and collect explicitly configured Notion Events and Pages as MyLibrary
-  inputs, retain source evidence, and publish pilot Entity views. Use for Notion
+  inputs, retain source evidence, and publish Entity views. Use for Notion
   setup, collection, source reads, or publication recovery.
 ---
 
@@ -12,7 +12,7 @@ Notion Events and Pages are configured input data sources. Local Entity files an
 
 ## Configure access and scope
 
-1. Keep the existing private credential route. On macOS, run `bash scripts/store-token-macos.sh` from this skill directory. Enter the credential only in its hidden-input terminal. The dedicated Keychain service remains `com.wayne.lib-notion`.
+1. The vault wrapper `scripts/mylibrary` injects the token from Doppler (project `mylibrary`, config `dev`, secret `NOTION_PAT`) when the Doppler CLI is logged in. Otherwise the runtime falls back to the Keychain service `com.wayne.lib-notion`, stored with `bash scripts/store-token-macos.sh` in a hidden-input terminal.
 2. Confirm the intended page and workspace from actual connected state. If Wayne supplied an existing MyLibrary page, run `mylibrary setup --main <page URL or ID> --dry-run`, inspect the result, then adopt that exact page. Use `--parent` only when the intent is to create a new MyLibrary child under another page. A dry-run does not check remote access.
 3. Run `mylibrary status` and verify the configured Events, Pages, and Entities mappings. Collection reads the configured input data sources. Do not default to a workspace-wide Search.
 4. Run `mylibrary collect`. Inspect retained source URLs, IDs, snapshots, attachment bytes, and coverage gaps before reporting readiness.
@@ -21,11 +21,11 @@ Notion Events and Pages are configured input data sources. Local Entity files an
 
 ## Process and publish
 
-Collection records immutable normalized revisions. Same-resource changes remain revisions. Equal text on separate pages remains separate Events. Empty pages and missing required blocks stay unresolved. System-only edits and rotating signed URLs do not prove new knowledge.
+Collection records immutable normalized revisions. Pages that an Event mentions or links are snapshotted as reference sources, never as Events. Same-resource changes remain revisions. Equal text on separate pages remains separate Events. Empty pages and missing required blocks stay unresolved. System-only edits and rotating signed URLs do not prove new knowledge.
 
 Use `lib-settle` for freeze, semantic staging, validate, and apply. Load [source-playbooks.md](references/source-playbooks.md) for Event and source-update interpretation. Scanner timestamps and `seen` values never establish consumption.
 
-Run `mylibrary publish --entity <id>` for the authorized pilot. Preserve the fixed local-ID-to-page mapping. Read back properties and body before success. A remote human edit blocks replacement. An uncertain create with zero exact-ID matches remains uncertain instead of creating again. Retry publishing independently from semantic apply. See [runtime-schema.md](references/runtime-schema.md).
+Run `mylibrary publish --entity <id>` for each Entity a settle changed. Preserve the fixed local-ID-to-page mapping. Read back properties and body before success. A remote human edit blocks replacement. An uncertain create with zero exact-ID matches remains uncertain instead of creating again. Retry publishing independently from semantic apply. See [runtime-schema.md](references/runtime-schema.md).
 
 ## Legacy scanner compatibility
 

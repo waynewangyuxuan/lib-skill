@@ -20,7 +20,7 @@ Give a bounded, read-only explanation for the requested topic. Start with the re
 
 The common route is capture or collect, freeze, compare Entity descriptions, load the needed source pack, stage, validate, apply, index, and publish. `mylibrary status` identifies pending or incomplete work. Recovery and publication have separate retries.
 
-Local files preserve Events, source snapshots, attachment bytes, Entity memory, mappings, and receipts. Notion provides configured Events and Pages inputs plus fixed Entity output pages. Daily work logs remain readable history. The existing 107 Entity pages, bodies, and type vocabulary remain compatible. Only pilot Entities are migrated by this upgrade.
+Local files preserve Events, source snapshots, attachment bytes, Entity memory, mappings, and receipts. Notion provides configured Events and Pages inputs plus fixed Entity output pages. Daily work logs remain readable history. The existing Entity pages, bodies, and type vocabulary remain compatible. A legacy Entity gains a stable ID and description when a settle first writes it. Untouched Entities stay as they are.
 
 The shared runtime is installed once with `python3 -m pip install -e <lib-skill-repo>`. Distributed skills include their references, not duplicate Python runtimes. A single-skill installation still requires `mylibrary` on the agent's PATH.
 

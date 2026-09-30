@@ -5,7 +5,7 @@ An Event is a bounded input. An Entity is durable memory about a stable thing. A
 ## Load context progressively
 
 1. Run `mylibrary status` and load the current input or frozen manifest.
-2. Run `mylibrary search "topic" --limit 5`. Compare descriptions before opening Entity bodies.
+2. Run `mylibrary search "topic" --scope entities --limit 5`. Compare descriptions before opening Entity bodies. The default scope also returns Events.
 3. Open the selected Entity, its typed neighbors when needed, and the relevant source snapshot.
 4. Load [source-playbooks.md](source-playbooks.md) only for the input's source type.
 5. Load [runtime-schema.md](runtime-schema.md) before staging or applying writes.
@@ -20,11 +20,11 @@ Daily headings, backlinks, edit timestamps, and scanner `seen` values are observ
 
 ## Preserve identity and human edits
 
-Keep each Entity's stable `id`, existing name, aliases, type, body, and typed Relations. Add a concise `description` to a pilot Entity when needed for retrieval. Do not force a new taxonomy on the existing registry.
+Keep each Entity's stable `id`, existing name, aliases, type, body, and typed Relations. Add a stable `id`, concise `description`, and `revision: 1` when a settle first writes a legacy Entity. Do not force a new taxonomy on the existing registry.
 
 Read the current file before proposing a replacement. Preserve earlier Context evidence and Wayne's corrections. Bind the proposal to the frozen base hash. A changed base blocks apply or recovery. Reconcile from the new human-edited base instead of overwriting it.
 
-The existing 107 Entity pages and historical work logs remain readable. Migrate only the pilot set. A legacy page without an ID is a migration candidate, not permission to rewrite every page.
+Existing Entity pages and historical work logs remain readable. A legacy page without an ID is migrated when a settle writes it, not before. That is not permission to rewrite every page.
 
 ## Keep evidence attached
 

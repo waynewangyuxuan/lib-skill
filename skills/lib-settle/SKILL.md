@@ -15,12 +15,12 @@ The input unit is an Event revision, not a daily heading. Multiple Events may up
 
 1. Run `mylibrary status`. If Notion input is configured, run `mylibrary collect`. A failed collection is a coverage gap, not an empty successful scan.
 2. Run `mylibrary freeze --output /tmp/lib-run/frozen.json --consumer settle`. Read its Event identities and coverage before loading bodies.
-3. For each input, compare three to five Entity descriptions with `mylibrary search <topic> --limit 5`. Resolve IDs, mappings, and aliases before opening selected bodies.
+3. For each input, first run `mylibrary resolve <page_id>` on every ID in its `mentions`. A resolved mention is a hard match and needs no broad candidate scan. Otherwise compare three to five Entity descriptions with `mylibrary search <topic> --scope entities --limit 5`. Resolve IDs, mappings, and aliases before opening selected bodies.
 4. Load the matching section of [source-playbooks.md](references/source-playbooks.md). Open only the required frozen artifacts and relevant typed neighbors. Give a reason before a second relation hop.
 5. Prepare complete Entity replacement files and one staging manifest outside the vault. Preserve Summary, Access, Context, Relations, types, and prior evidence. Use [runtime-schema.md](references/runtime-schema.md) and [consumer-interface.md](references/consumer-interface.md).
 6. Give each frozen Event one outcome. Each integration cites its own frozen Event evidence. Partial coverage requires `coverage_ack` explaining why the gap cannot affect the conclusion. Otherwise use `blocked`; uncertain identity uses `needs_review`. Neither outcome authorizes files. A necessary no-write outcome is `recorded_only` with a reason.
 7. Run `mylibrary validate <staging>`, then `mylibrary apply <staging>`. Report successful, pending, and blocked Event revisions separately.
-8. Run `mylibrary index`. Publish affected pilot Entities with `mylibrary publish --entity <id>` when publication is in scope. Publication failure does not rerun apply.
+8. Run `mylibrary index`. Publish each affected Entity with `mylibrary publish --entity <id>`. Publication failure does not rerun apply.
 
 An interrupted apply uses `mylibrary recover <run_id>`. A human-edited base blocks replacement and requires a new proposal from that base. Only successful outcomes backed by the completed apply receipt count as consumed.
 

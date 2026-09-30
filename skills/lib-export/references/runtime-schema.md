@@ -111,7 +111,7 @@ mylibrary validate <staging>
 mylibrary apply <staging>
 mylibrary recover <run_id>
 mylibrary index
-mylibrary search <query> [--limit 5]
+mylibrary search <query> [--scope personal|entities|sources|all] [--limit 5]
 mylibrary resolve <ref>
 mylibrary neighbors <id> [--predicate <type>] [--direction incoming|outgoing|both]
 mylibrary source-open <ref> --mode cache|if-stale|live|historical [--revision <revision>]

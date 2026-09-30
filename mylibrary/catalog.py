@@ -441,7 +441,7 @@ def _scope(records: list[dict], scope) -> list[dict]:
     if scope is None:
         return records
     if isinstance(scope, (str, Path)):
-        if str(scope) in {"all", "personal"}:
+        if str(scope) in {"all", "personal", "entities"}:
             return records
         if str(scope) == "sources":
             return []

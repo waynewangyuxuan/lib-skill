@@ -44,7 +44,7 @@ def parser():
     query = commands.add_parser("search")
     query.add_argument("query")
     query.add_argument("--limit", type=int, default=5)
-    query.add_argument("--scope", choices=("personal", "sources", "all"), default="personal")
+    query.add_argument("--scope", choices=("personal", "entities", "sources", "all"), default="personal")
     commands.add_parser("resolve").add_argument("reference")
     graph = commands.add_parser("neighbors")
     graph.add_argument("entity_id")
