@@ -21,7 +21,7 @@ The input unit is an Event revision, not a daily heading. Multiple Events may up
 6. Give each frozen Event one outcome. Each integration cites its own frozen Event evidence. Partial coverage requires `coverage_ack` explaining why the gap cannot affect the conclusion. Otherwise use `blocked`; uncertain identity uses `needs_review`. Neither outcome authorizes files. A necessary no-write outcome is `recorded_only` with a reason.
 7. Run `mylibrary validate <staging>`, then `mylibrary apply <staging>`. Report successful, pending, and blocked Event revisions separately.
 8. Run `mylibrary index`. Publish each affected Entity with `mylibrary publish --entity <id>`. Publication failure does not rerun apply.
-9. Run `mylibrary worklog --run <run_id>`. It rewrites the `## Settle Log · 回执 #ai-generated` section of each affected day in `工作记录/` from receipts, creating the day file if needed. Give each `integrated` outcome a one-line `summary` in staging so the log says what changed. Do not hand-edit that section.
+9. Run `mylibrary worklog --run <run_id>`. It rewrites the `## Settle Log · 回执 #ai-generated` section of each affected day in `工作记录/` from receipts, creating the day file if needed. Give each `integrated` outcome a `summary` in staging so the log says what changed. Write `summary` and `reason` as one short line in the language of Wayne's work log, without IDs a reader cannot use. Do not hand-edit that section.
 
 An interrupted apply uses `mylibrary recover <run_id>`. A human-edited base blocks replacement and requires a new proposal from that base. Only successful outcomes backed by the completed apply receipt count as consumed.
 

@@ -55,7 +55,7 @@ def _rows(vault):
         if event["revision"] > 1:
             label += f" rev {event['revision']}"
         line = f"- {label} · {status}" + (f" · {note.strip()}" if note and note.strip() else "")
-        rows.setdefault(logical_day(moment), []).append((moment, name, line))
+        rows.setdefault(logical_day(moment), []).append((moment, name, event["revision"], line))
     return rows
 
 
@@ -72,7 +72,7 @@ def write_worklog(vault, run_id=None):
     written = []
     with writer_lock(vault):
         for day in sorted(days & set(rows)):
-            lines = [line for _, _, line in sorted(rows[day])]
+            lines = [line for *_, line in sorted(rows[day])]
             section = HEADING + "\n\n由 settle 回执生成，重跑会整节重写。\n\n" + "\n".join(lines) + "\n"
             relative = day_path(day)
             target = vault / relative
