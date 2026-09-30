@@ -19,5 +19,7 @@ copy_reference relations-vocabulary.md lib-entity lib-manual lib-review lib-sear
 copy_reference skill-conventions.md lib-compile lib-entity lib-export lib-manual lib-notion lib-review lib-search lib-settle
 copy_reference runtime-schema.md lib-compile lib-entity lib-export lib-manual lib-notion lib-review lib-search lib-settle
 copy_reference source-playbooks.md lib-compile lib-entity lib-export lib-manual lib-notion lib-review lib-search lib-settle
+copy_reference source-notion.md lib-entity lib-export lib-manual lib-notion lib-review lib-search lib-settle
+copy_reference source-github.md lib-entity lib-export lib-manual lib-notion lib-review lib-search lib-settle
 
 echo "Synchronized shared references into distributable skills."

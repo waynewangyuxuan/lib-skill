@@ -1,6 +1,6 @@
 # Source-specific processing playbooks
 
-Load the current source section after reading the frozen Event record. Load additional sources only when a claim needs them. Keep a bounded source pack with input identity, required artifacts, coverage gaps, and precise evidence references.
+Load the current source section after reading the frozen Event record. For provider details, load [source-notion.md](source-notion.md) for Notion Events, mentions, and reference pages, and [source-github.md](source-github.md) for repositories, files, commits, pull requests, and comments. Load additional sources only when a claim needs them. Keep a bounded source pack with input identity, required artifacts, coverage gaps, and precise evidence references.
 
 ## A user Event
 
