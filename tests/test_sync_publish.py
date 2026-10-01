@@ -1,4 +1,5 @@
 import copy
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 import re
@@ -247,6 +248,17 @@ class SyncTests(unittest.TestCase):
                                   edited="2099-01-01T00:00:00.000Z")
         later = {item["page_id"]: item["readiness"] for item in collect(self.vault, self.client)["watch"]["observed"]}
         self.assertEqual(later, {late: "baseline", fresh: "ready"})
+
+    def test_edit_in_the_same_minute_as_collect_is_not_missed(self):
+        settings = read_json(self.vault / SETUP)
+        settings["watch"] = {"exclude": []}
+        atomic_json(self.vault / SETUP, settings)
+        minute = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:00.000Z")
+        root = self.watched_page(60, {"type": "workspace", "workspace": True}, "Draft", edited=minute)
+        collect(self.vault, self.client)
+        self.client.blocks[root][0]["paragraph"]["rich_text"] = [rich("Draft finished")]
+        again = collect(self.vault, self.client)
+        self.assertEqual([(item["page_id"], item["revision"]) for item in again["watch"]["observed"]], [(root, 2)])
 
     def test_busy_vault_skips_one_watch_page_without_losing_the_rest(self):
         settings = read_json(self.vault / SETUP)
