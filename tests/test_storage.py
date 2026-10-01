@@ -198,6 +198,15 @@ class StorageTests(unittest.TestCase):
         write_worklog(self.vault)
         self.assertIn("- Scratch · 只记录 · nothing to add", (self.vault / "工作记录/September/2026-9-4.md").read_text())
 
+    def test_historical_capture_keeps_its_logical_day(self):
+        from mylibrary.worklog import write_worklog
+        note = self.root / "note.md"
+        note.write_text("Old handwritten section")
+        event = self.library.capture(note, resource_id="worklog:2026-9-29", name="Old notes", occurred_at="2026-09-29")
+        self.assertEqual(event["occurred_at"], "2026-09-29")
+        write_worklog(self.vault)
+        self.assertIn("- Old notes · 未沉淀", (self.vault / "工作记录/September/2026-9-29.md").read_text())
+
     def test_interrupted_multifile_recovery_and_independent_publication(self):
         event = self.record()
         path, stage = self.stage([event], [("_entities/alpha.md", entity("Alpha", "ent_alpha")),
