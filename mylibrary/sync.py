@@ -222,6 +222,13 @@ def search_all(client, kind):
         cursor = response["next_cursor"]
 
 
+def settled_minute(edited):
+    if not edited:
+        return None
+    moment = datetime.fromisoformat(edited.replace("Z", "+00:00"))
+    return edited if (datetime.now(timezone.utc) - moment).total_seconds() >= 120 else None
+
+
 def collect_watch(client, library, setup, skip):
     excluded = {notion_id(item) for item in setup["watch"].get("exclude", [])} | skip
     machine = {notion_id(setup["resources"][key]["data_source_id"]) for key in ("events", "entities")}
@@ -254,7 +261,7 @@ def collect_watch(client, library, setup, skip):
             else:
                 captured = read_page(client, identifier)
                 blocks = captured["raw"]["blocks"]
-                entry = {"edited": edited,
+                entry = {"edited": settled_minute(edited),
                          "children": [notion_id(block["id"]) for block in blocks if block.get("type") == "child_page"],
                          "databases": [notion_id(block["id"]) for block in blocks if block.get("type") == "child_database"]}
                 envelope = library.record("notion", setup["workspace_id"], identifier, captured["body"],

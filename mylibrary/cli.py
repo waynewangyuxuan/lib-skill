@@ -26,6 +26,7 @@ def parser():
     capture.add_argument("--name", default="")
     capture.add_argument("--resource-id")
     capture.add_argument("--mode", choices=("result", "detail", "event"), default="result")
+    capture.add_argument("--occurred-at")
     capture_url = commands.add_parser("capture-url")
     capture_url.add_argument("url")
     capture_url.add_argument("--mode", choices=("cache", "if-stale", "live"), default="live")
@@ -92,7 +93,7 @@ def run(args):
                 result["notion"] = {"workspace_id": workspace(client), "status": "parent_required"}
         return result
     if name == "capture":
-        return library.capture(args.file, resource_id=args.resource_id, name=args.name,
+        return library.capture(args.file, resource_id=args.resource_id, name=args.name, occurred_at=args.occurred_at,
                                mode="result" if args.mode == "event" else args.mode)
     if name == "capture-url":
         from .github import capture_url

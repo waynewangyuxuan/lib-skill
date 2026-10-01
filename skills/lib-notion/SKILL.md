@@ -5,7 +5,7 @@ description: >
   inputs, retain source evidence, and publish Entity views. Use for Notion
   setup, collection, watch-area scope, source reads, or publication recovery.
 metadata:
-  runtime: mylibrary-tools>=3.2.0
+  runtime: mylibrary-tools>=3.3.0
 ---
 
 # Collect Notion inputs and publish Entity views

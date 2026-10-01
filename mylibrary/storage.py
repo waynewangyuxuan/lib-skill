@@ -362,7 +362,7 @@ class Library:
             _atomic_bytes(self._path(f"_events/{event_id}/event.md"), body.encode())
             return envelope
 
-    def capture(self, body_file, *, resource_id=None, name="", mode="result"):
+    def capture(self, body_file, *, resource_id=None, name="", mode="result", occurred_at=None):
         if mode not in {"result", "detail"}:
             raise ValueError("Capture mode must be result or detail")
         with writer_lock(self.vault):
@@ -372,7 +372,7 @@ class Library:
                 atomic_json(state, identity)
         return self.record("local", identity["workspace_id"], resource_id or uuid.uuid4().hex,
                            Path(body_file).read_text(encoding="utf-8"), name=name,
-                           authorship="agent_capture", semantic={"capture_mode": mode})
+                           authorship="agent_capture", semantic={"capture_mode": mode}, occurred_at=occurred_at)
 
     def _receipt_pointer(self, consumer, event_id, revision):
         return self._path(f"_state/consumption/{_slug(consumer)}/{_slug(event_id)}/{int(revision)}.json")

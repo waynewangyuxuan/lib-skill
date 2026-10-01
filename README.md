@@ -1,4 +1,4 @@
-# lib-skill 3.2
+# lib-skill 3.3
 
 MyLibrary captures Events, preserves their source evidence, and integrates supported knowledge into stable Entities. Local files are authoritative. Notion supplies the Events database, a watched workspace area, and fixed Entity output pages.
 

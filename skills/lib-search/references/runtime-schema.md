@@ -102,7 +102,7 @@ After an uncertain create response, query the configured Entities data source by
 ```text
 mylibrary status
 mylibrary doctor [--offline]
-mylibrary capture <file> [--name <name>] [--resource-id <id>] [--mode result|detail]
+mylibrary capture <file> [--name <name>] [--resource-id <id>] [--mode result|detail] [--occurred-at <YYYY-MM-DD>]
 mylibrary capture-url <GitHub-url> [--mode cache|if-stale|live]
 mylibrary collect
 mylibrary pending [--consumer settle]

@@ -7,7 +7,7 @@ description: >
   today", "settle all unprocessed", "export", "导出", "总结一下", "export
   result", "export detail", "记录过程", or historical forward and reverse reads.
 metadata:
-  runtime: mylibrary-tools>=3.2.0
+  runtime: mylibrary-tools>=3.3.0
 ---
 
 # Integrate pending Events
@@ -43,7 +43,7 @@ Do not claim a behavior was tested when only its code or API response was inspec
 
 An explicit date or reverse-settle request may inspect old work logs and repository commits. Use the 04:00 logical day boundary. Load [reverse-scan.md](references/reverse-scan.md) only for repository discovery. Preserve author filtering, all-ref reads, and worktree dedup.
 
-Capture the selected historical evidence as a bounded Event before new integration. Do not scan all history by default. A heading, backlink, legacy Settle Log, or scanner `seen` entry does not skip a pending Event. Migrate a legacy Entity only when this settle writes it.
+Capture the selected historical evidence as a bounded Event before new integration, with `--occurred-at <YYYY-MM-DD>` set to the day it was written so the work log places it there. Do not scan all history by default. A heading, backlink, legacy Settle Log, or scanner `seen` entry does not skip a pending Event. Migrate a legacy Entity only when this settle writes it.
 
 Semantic Entity decisions use `lib-entity` rules within the same proposal. Do not run a second direct-write extraction pass after apply. Load [skill-conventions.md](references/skill-conventions.md) when a write boundary matters.
 
