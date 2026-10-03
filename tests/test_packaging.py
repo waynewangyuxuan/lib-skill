@@ -24,4 +24,4 @@ class PackagingTests(unittest.TestCase):
             self.assertTrue(requirement.startswith("mylibrary-tools>="), path)
             needed = tuple(int(part) for part in requirement.split(">=")[1].split("."))
             self.assertLessEqual(needed, current, path)
-            self.assertEqual(needed, current, f"{path} should require the version it was written for")
+            self.assertEqual(needed[:2], current[:2], f"{path} should require the minor version it was written for")

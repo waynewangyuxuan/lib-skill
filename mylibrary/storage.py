@@ -416,13 +416,16 @@ class Library:
             raise ValueError("Final consumer receipt is corrupt or inconsistent")
         return value
 
-    def event_day(self, event):
+    def event_moment(self, event):
         raw_path = self._path(event["raw_path"])
         page = read_json(raw_path).get("page", {}) if raw_path.is_file() else {}
         edited = page.get("last_edited_time") if event["input_kind"] == "source_update" else page.get("created_time")
+        return event.get("occurred_at") or edited or event["collected_at"]
+
+    def event_day(self, event):
         state = self._path("_state/library.json")
         zone = event.get("timezone") or (read_json(state).get("default_timezone") if state.exists() else None)
-        return logical_day(event.get("occurred_at") or edited or event["collected_at"], zone)
+        return logical_day(self.event_moment(event), zone)
 
     def activity(self, consumer="settle"):
         found = {}

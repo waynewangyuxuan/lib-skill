@@ -1,6 +1,7 @@
 """Receipt-backed settle sections in the daily work log."""
 
 import calendar
+from datetime import datetime, timezone
 from pathlib import Path
 import re
 
@@ -41,7 +42,9 @@ def _rows(vault):
         if event["revision"] > 1:
             label += f" rev {event['revision']}"
         line = f"- {label} · {status}" + (f" · {note.strip()}" if note and note.strip() else "")
-        rows.setdefault(day, []).append((name, event["revision"], line))
+        moment = datetime.fromisoformat(library.event_moment(event).replace("Z", "+00:00"))
+        moment = moment if moment.tzinfo else moment.replace(tzinfo=timezone.utc)
+        rows.setdefault(day, []).append((moment, name, event["revision"], line))
     return rows
 
 
