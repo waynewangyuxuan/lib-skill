@@ -100,6 +100,8 @@ class MemoryNotion:
             self.next_id += 1
             if path == "/pages":
                 page = {"id": value, "parent": payload["parent"], "properties": {}, "url": "https://www.notion.so/" + value}
+                if "icon" in payload:
+                    page["icon"] = payload["icon"]
                 self.pages[value] = page
                 self.markdown[value] = ""
                 self._patch_properties(page, payload["properties"])

@@ -5,7 +5,7 @@ description: >
   publication state for a day or week. Use for "review today", "review week",
   "lib-review eod", or "lib-review eow".
 metadata:
-  runtime: mylibrary-tools>=3.3.0
+  runtime: mylibrary-tools>=3.4.0
 ---
 
 # Review receipts and unresolved work

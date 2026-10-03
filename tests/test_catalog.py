@@ -46,7 +46,7 @@ class PublisherClient:
             self.markdown = payload["replace_content"]["new_str"]
             return {"object": "page"}
         if (method, path) == ("PATCH", f"/pages/{self.page_id}"):
-            self.properties.update(self.api_properties(payload["properties"]))
+            self.properties.update(self.api_properties(payload.get("properties", {})))
             return {"id": self.page_id}
         raise AssertionError(f"Unexpected publisher request: {method} {path}")
 

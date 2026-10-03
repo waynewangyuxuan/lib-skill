@@ -16,6 +16,7 @@ MAP = "_state/notion/entity-map.json"
 TITLE_PREFIX = "ENT "
 IDENTITY = ("Name", "Entity ID", "Description", "Type", "Published Revision")
 DERIVED = ("Event Count", "Last Event", "Tags", "State")
+ICON = {"type": "emoji", "emoji": "🧩"}
 
 
 def canonical_markdown(value):
@@ -201,7 +202,8 @@ def publish_one(vault, path, client, setup, activity=None):
             save(status="pending", create_state="uncertain", target_hash=payload_hash,
                  initial_properties_sha256=initial_properties_hash, local_sha256=digest(path))
             try:
-                created = client.request("POST", "/pages", {"parent": {"type": "data_source_id", "data_source_id": source}, "properties": basic})
+                created = client.request("POST", "/pages", {"parent": {"type": "data_source_id", "data_source_id": source},
+                                                            "properties": basic, "icon": ICON})
             except UncertainWrite:
                 return save(status="uncertain", reason="Create response unavailable; retry will reconcile exact Entity ID")
             except NotionError as error:
@@ -230,6 +232,8 @@ def publish_one(vault, path, client, setup, activity=None):
                 atomic_json(conflict, {"page_id": identifier, "markdown": remote_body, "properties": _properties(page),
                                        "expected_remote_sha256": previous_remote, "local_sha256": digest(path)})
             return save(status="needs_review", reason="Machine page contains a human or unrecognized edit", conflict_path=str(conflict))
+        if not page.get("icon"):
+            client.request("PATCH", "/pages/" + identifier, {"icon": ICON})
         if (ledger.get("target_hash") == payload_hash and ledger.get("status") == "published"
                 and ledger.get("written_sha256") == digest(markdown) and remote_hash == previous_remote
                 and _properties(page, IDENTITY + DERIVED) == wanted_all):
