@@ -146,7 +146,7 @@ class StorageTests(unittest.TestCase):
         first = self.record("one", occurred_at="2026-09-01")
         path, _ = self.stage([first], [("_entities/alpha.md", entity("Alpha", "ent_alpha", extra="One.\n"))])
         self.library.apply(path)
-        second = self.record("two", body="Another", occurred_at="2026-09-03T10:00:00Z")
+        second = self.record("two", body="Another", occurred_at="2026-09-03T20:00:00Z")
         path, _ = self.stage([second], [("_entities/alpha.md", entity("Alpha", "ent_alpha", 2, extra="One.\nTwo.\n"))])
         self.library.apply(path)
         noise = self.record("three", body="Noise", occurred_at="2026-09-05")

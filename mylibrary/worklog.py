@@ -1,7 +1,6 @@
 """Receipt-backed settle sections in the daily work log."""
 
 import calendar
-from datetime import date, datetime, timedelta
 from pathlib import Path
 import re
 
@@ -14,21 +13,8 @@ SECTION = re.compile(r"^" + re.escape(HEADING) + r"\n.*?(?=^## |\Z)", re.M | re.
 LABELS = {"integrated": "整合进", "recorded_only": "只记录"}
 
 
-def logical_day(moment):
-    if len(moment) == 10:
-        return date.fromisoformat(moment)
-    return (datetime.fromisoformat(moment.replace("Z", "+00:00")).astimezone() - timedelta(hours=4)).date()
-
-
 def day_path(day):
     return f"{ROOT}/{calendar.month_name[day.month]}/{day.year}-{day.month}-{day.day}.md"
-
-
-def _moment(library, event):
-    raw_path = library._path(event["raw_path"])
-    page = read_json(raw_path).get("page", {}) if raw_path.is_file() else {}
-    edited = page.get("last_edited_time") if event["input_kind"] == "source_update" else page.get("created_time")
-    return event.get("occurred_at") or edited or event["collected_at"]
 
 
 def _rows(vault):
@@ -48,14 +34,14 @@ def _rows(vault):
             status, note = "未沉淀", None
         else:
             continue
-        moment = _moment(library, event)
+        day = library.event_day(event)
         name = event.get("name") or event["event_id"]
         url = event.get("source_url") or ""
         label = f"[{name}]({url})" if url.startswith("https://") else name
         if event["revision"] > 1:
             label += f" rev {event['revision']}"
         line = f"- {label} · {status}" + (f" · {note.strip()}" if note and note.strip() else "")
-        rows.setdefault(logical_day(moment), []).append((moment, name, event["revision"], line))
+        rows.setdefault(day, []).append((name, event["revision"], line))
     return rows
 
 
@@ -67,7 +53,7 @@ def write_worklog(vault, run_id=None):
     if run_id is not None:
         receipt = read_json(library._path(f"_runs/{run_id}/receipt.json"))
         touched = {tuple(Path(path).parts[-2:]) for path in receipt["outcome_receipts"]}
-        days = {logical_day(_moment(library, read_json(library._path(f"_events/{event_id}/revisions/{Path(name).stem}/event.json"))))
+        days = {library.event_day(read_json(library._path(f"_events/{event_id}/revisions/{Path(name).stem}/event.json")))
                 for event_id, name in touched}
     written = []
     with writer_lock(vault):

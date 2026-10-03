@@ -5,7 +5,7 @@ description: >
   inputs, retain source evidence, and publish Entity views. Use for Notion
   setup, collection, watch-area scope, source reads, or publication recovery.
 metadata:
-  runtime: mylibrary-tools>=3.4.0
+  runtime: mylibrary-tools>=3.5.0
 ---
 
 # Collect Notion inputs and publish Entity views
@@ -27,6 +27,6 @@ Collection records immutable normalized revisions. Pages that an Event mentions 
 
 Use `lib-settle` for freeze, semantic staging, validate, and apply. Load [source-playbooks.md](references/source-playbooks.md) for Event and source-update interpretation. Scanner timestamps and `seen` values never establish consumption.
 
-Run `mylibrary publish --entity <id>` for each Entity a settle changed. Preserve the fixed local-ID-to-page mapping. Read back properties and body before success. A remote human edit blocks replacement. An uncertain create with zero exact-ID matches remains uncertain instead of creating again. Retry publishing independently from semantic apply. See [runtime-schema.md](references/runtime-schema.md).
+Run `mylibrary publish` after a settle. Unchanged pages are skipped; pages whose links now reach a newly published Entity are refreshed. Use `--entity <id>` only to retry one page. Preserve the fixed local-ID-to-page mapping. Read back properties and body before success. A remote human edit blocks replacement. An uncertain create with zero exact-ID matches remains uncertain instead of creating again. Retry publishing independently from semantic apply. See [runtime-schema.md](references/runtime-schema.md).
 
 Report local fixture, live API, Notion interface, phone, and offline checks separately. Do not infer interface success from setup or API collection.

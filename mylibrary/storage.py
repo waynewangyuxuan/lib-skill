@@ -1,7 +1,7 @@
 """Durable Event evidence, Entity replacement plans, and consumer receipts."""
 
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 import fcntl
 import hashlib
 import json
@@ -104,6 +104,12 @@ def writer_lock(vault, wait_seconds=15):
     finally:
         if inherited is None:
             os.close(descriptor)
+
+
+def logical_day(moment):
+    if len(moment) == 10:
+        return date.fromisoformat(moment)
+    return (datetime.fromisoformat(moment.replace("Z", "+00:00")).astimezone() - timedelta(hours=4)).date()
 
 
 def _slug(value):
@@ -401,6 +407,12 @@ class Library:
             raise ValueError("Final consumer receipt is corrupt or inconsistent")
         return value
 
+    def event_day(self, event):
+        raw_path = self._path(event["raw_path"])
+        page = read_json(raw_path).get("page", {}) if raw_path.is_file() else {}
+        edited = page.get("last_edited_time") if event["input_kind"] == "source_update" else page.get("created_time")
+        return logical_day(event.get("occurred_at") or edited or event["collected_at"])
+
     def activity(self, consumer="settle"):
         found = {}
         root = self._path(f"_state/consumption/{_slug(consumer)}")
@@ -412,10 +424,7 @@ class Library:
             receipt = read_json(self._path(completed["receipt_path"]))
             if receipt["outcome"] != "integrated":
                 continue
-            event = read_json(self._path(f"_events/{event_id}/revisions/{revision}/event.json"))
-            raw_path = event.get("raw_path") and self._path(event["raw_path"])
-            raw = read_json(raw_path) if raw_path and raw_path.is_file() else {}
-            day = (event.get("occurred_at") or raw.get("page", {}).get("created_time") or event["collected_at"])[:10]
+            day = str(self.event_day(read_json(self._path(f"_events/{event_id}/revisions/{revision}/event.json"))))
             for entity_id in receipt.get("entity_ids", []):
                 events, last = found.get(entity_id, (set(), day))
                 found[entity_id] = (events | {event_id}, max(last, day))

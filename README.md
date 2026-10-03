@@ -1,4 +1,4 @@
-# lib-skill 3.4
+# lib-skill 3.5
 
 MyLibrary captures Events, preserves their source evidence, and integrates supported knowledge into stable Entities. Local files are authoritative. Notion supplies the Events database, a watched workspace area, and fixed Entity output pages.
 
@@ -43,7 +43,7 @@ bash ~/lib-skill/install.sh all --python ~/.venvs/mylibrary/bin/python
 3. Use `lib-settle` to resolve Entity descriptions and load only the needed source pack.
 4. Stage complete Entity replacements and an outcome for every frozen Event outside the vault.
 5. Run `mylibrary validate <staging>` and `mylibrary apply <staging>`.
-6. Run `mylibrary index` and publish each affected Entity with `mylibrary publish --entity <id>`.
+6. Run `mylibrary index` and `mylibrary publish`, which skips unchanged pages.
 
 Use `mylibrary recover <run_id>` after an interrupted apply. Retry publication separately. Missing evidence, uncertain identity, and human-edit conflicts remain unresolved rather than consumed.
 
