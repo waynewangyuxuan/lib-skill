@@ -214,6 +214,19 @@ class StorageTests(unittest.TestCase):
         self.library.apply(path)
         self.assertEqual(self.library.activity()["ent_alpha"]["last_event"], "2026-09-30")
 
+    def test_logical_day_uses_the_timezone_where_the_event_was_recorded(self):
+        with patch.dict(os.environ, {"TZ": "Asia/Shanghai"}):
+            event = self.record("trip", body="Written in Shanghai", occurred_at="2026-09-29T21:00:00Z")
+        self.assertEqual(event["timezone"], "Asia/Shanghai")
+        for zone in ("America/Los_Angeles", "Europe/London"):
+            with patch.dict(os.environ, {"TZ": zone}):
+                self.assertEqual(str(self.library.event_day(event)), "2026-09-30")
+        legacy = dict(event, timezone=None)
+        atomic_json(self.vault / "_state/library.json", dict(read_json(self.vault / "_state/library.json"),
+                                                              default_timezone="America/Los_Angeles"))
+        with patch.dict(os.environ, {"TZ": "Asia/Tokyo"}):
+            self.assertEqual(str(self.library.event_day(legacy)), "2026-09-29")
+
     def test_interrupted_multifile_recovery_and_independent_publication(self):
         event = self.record()
         path, stage = self.stage([event], [("_entities/alpha.md", entity("Alpha", "ent_alpha")),
