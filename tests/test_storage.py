@@ -222,8 +222,8 @@ class StorageTests(unittest.TestCase):
             with patch.dict(os.environ, {"TZ": zone}):
                 self.assertEqual(str(self.library.event_day(event)), "2026-09-30")
         legacy = dict(event, timezone=None)
-        atomic_json(self.vault / "_state/library.json", dict(read_json(self.vault / "_state/library.json"),
-                                                              default_timezone="America/Los_Angeles"))
+        state = self.vault / "_state/library.json"
+        atomic_json(state, dict(read_json(state) if state.exists() else {}, default_timezone="America/Los_Angeles"))
         with patch.dict(os.environ, {"TZ": "Asia/Tokyo"}):
             self.assertEqual(str(self.library.event_day(legacy)), "2026-09-29")
 

@@ -12,6 +12,7 @@ import shutil
 import tempfile
 import time
 import uuid
+from zoneinfo import ZoneInfo
 
 import yaml
 
@@ -106,10 +107,18 @@ def writer_lock(vault, wait_seconds=15):
             os.close(descriptor)
 
 
-def logical_day(moment):
+def local_timezone():
+    if os.environ.get("TZ"):
+        return os.environ["TZ"]
+    target = os.path.realpath("/etc/localtime")
+    return target.split("zoneinfo/", 1)[1] if "zoneinfo/" in target else None
+
+
+def logical_day(moment, zone=None):
     if len(moment) == 10:
         return date.fromisoformat(moment)
-    return (datetime.fromisoformat(moment.replace("Z", "+00:00")).astimezone() - timedelta(hours=4)).date()
+    instant = datetime.fromisoformat(moment.replace("Z", "+00:00"))
+    return (instant.astimezone(ZoneInfo(zone) if zone else None) - timedelta(hours=4)).date()
 
 
 def _slug(value):
@@ -338,7 +347,7 @@ class Library:
             envelope = {"schema_version": SCHEMA, "event_id": event_id, "revision": revision,
                         "identity": identity, "source_id": source_id, "name": name,
                         "input_kind": input_kind, "occurred_at": occurred_at,
-                        "collected_at": timestamp(), "authorship": authorship,
+                        "collected_at": timestamp(), "timezone": local_timezone(), "authorship": authorship,
                         "mentions": list(mentions), "semantic": semantic_data,
                         "semantic_sha256": content_hash,
                         "normalizer_version": (semantic or {}).get("normalizer_version", "1"),
@@ -411,7 +420,9 @@ class Library:
         raw_path = self._path(event["raw_path"])
         page = read_json(raw_path).get("page", {}) if raw_path.is_file() else {}
         edited = page.get("last_edited_time") if event["input_kind"] == "source_update" else page.get("created_time")
-        return logical_day(event.get("occurred_at") or edited or event["collected_at"])
+        state = self._path("_state/library.json")
+        zone = event.get("timezone") or (read_json(state).get("default_timezone") if state.exists() else None)
+        return logical_day(event.get("occurred_at") or edited or event["collected_at"], zone)
 
     def activity(self, consumer="settle"):
         found = {}
