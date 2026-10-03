@@ -207,6 +207,13 @@ class StorageTests(unittest.TestCase):
         write_worklog(self.vault)
         self.assertIn("- Old notes · 未沉淀", (self.vault / "工作记录/September/2026-9-29.md").read_text())
 
+    def test_activity_dates_a_source_update_by_its_edit(self):
+        raw = {"page": {"created_time": "2026-09-26T18:00:00.000Z", "last_edited_time": "2026-09-30T18:00:00.000Z"}}
+        update = self.library.record("notion", "workspace", "page", "Revised notes", input_kind="source_update", raw=raw)
+        path, _ = self.stage([update], [("_entities/alpha.md", entity("Alpha", "ent_alpha", extra="One.\n"))])
+        self.library.apply(path)
+        self.assertEqual(self.library.activity()["ent_alpha"]["last_event"], "2026-09-30")
+
     def test_interrupted_multifile_recovery_and_independent_publication(self):
         event = self.record()
         path, stage = self.stage([event], [("_entities/alpha.md", entity("Alpha", "ent_alpha")),
