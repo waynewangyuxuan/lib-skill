@@ -130,7 +130,9 @@ class MemoryNotion:
             return {"object": "page_markdown", "markdown": self.markdown[value]}
         if method == "PATCH" and path.startswith("/pages/"):
             page = self.pages[path.split("/")[2]]
-            self._patch_properties(page, payload["properties"])
+            if "icon" in payload:
+                page["icon"] = payload["icon"]
+            self._patch_properties(page, payload.get("properties", {}))
             return copy.deepcopy(page)
         raise AssertionError((method, path, payload))
 
@@ -339,6 +341,17 @@ class SyncTests(unittest.TestCase):
         self.assertEqual(page["properties"]["State"]["select"]["name"], "active")
         self.assertIn("name: Example", path.read_text())
         self.assertEqual(self.result()["status"], "unchanged")
+
+    def test_entity_pages_get_a_default_icon_but_keep_a_chosen_one(self):
+        self.entity()
+        page = self.client.pages[self.result()["page_id"]]
+        self.assertEqual(page["icon"], {"type": "emoji", "emoji": "🧩"})
+        page["icon"] = {"type": "emoji", "emoji": "🦉"}
+        self.result()
+        self.assertEqual(page["icon"], {"type": "emoji", "emoji": "🦉"})
+        del page["icon"]
+        self.assertEqual(self.result()["status"], "unchanged")
+        self.assertEqual(page["icon"], {"type": "emoji", "emoji": "🧩"})
 
     def test_page_published_before_prefix_upgrades_without_review(self):
         self.entity()
