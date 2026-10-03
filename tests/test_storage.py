@@ -227,6 +227,14 @@ class StorageTests(unittest.TestCase):
         with patch.dict(os.environ, {"TZ": "Asia/Tokyo"}):
             self.assertEqual(str(self.library.event_day(legacy)), "2026-09-29")
 
+    def test_worklog_lists_a_day_in_time_order(self):
+        from mylibrary.worklog import write_worklog
+        self.record("late", body="Late note", name="A late note", occurred_at="2026-09-29T23:00:00-07:00")
+        self.record("early", body="Early note", name="Z early note", occurred_at="2026-09-29T09:00:00-07:00")
+        write_worklog(self.vault)
+        text = (self.vault / "工作记录/September/2026-9-29.md").read_text()
+        self.assertLess(text.index("Z early note"), text.index("A late note"))
+
     def test_interrupted_multifile_recovery_and_independent_publication(self):
         event = self.record()
         path, stage = self.stage([event], [("_entities/alpha.md", entity("Alpha", "ent_alpha")),
