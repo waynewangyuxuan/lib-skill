@@ -61,7 +61,7 @@ class MemoryNotion:
             return []
         pages = [copy.deepcopy(page) for page in self.pages.values() if page.get("parent", {}).get("data_source_id") == source]
         if filter:
-            pages = [page for page in pages if "".join(item["text"]["content"] for item in page["properties"].get("Entity ID", {}).get("rich_text", [])) == filter["rich_text"]["equals"]]
+            pages = [page for page in pages if "".join(item["text"]["content"] for item in page["properties"].get(filter["property"], {}).get("rich_text", [])) == filter["rich_text"]["equals"]]
         return pages
 
     def children(self, parent):
