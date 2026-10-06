@@ -1,6 +1,6 @@
 {
   "name": "lib-skill",
-  "version": "3.6.1",
+  "version": "3.7.0",
   "description": "Event-first MyLibrary workflows with shared runtime, evidence-backed Entity memory, and recoverable Notion publication.",
   "author": {
     "name": "Wayne Wang"

@@ -548,7 +548,7 @@ class SetupTests(unittest.TestCase):
             two = setup(vault, parent, client=client)
             self.assertEqual(one["resources"], two["resources"])
             self.assertEqual(sum(call[0] in {"POST", "PATCH"} for call in client.calls), count)
-            self.assertEqual(len(one["resources"]), 4)
+            self.assertEqual(len(one["resources"]), 5)
 
     def test_setup_adds_activity_properties_and_charts_to_existing_setup(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -572,8 +572,8 @@ class SetupTests(unittest.TestCase):
             self.assertEqual(sorted(client.sources[source]["properties"]),
                              sorted(first["resources"]["entities"]["properties"]))
             self.assertEqual(second["resources"]["entities"]["properties"], first["resources"]["entities"]["properties"])
-            self.assertEqual(sum(call[:2] == ("POST", "/databases") for call in client.calls), 2)
-            self.assertEqual(sum(call[:2] == ("POST", "/views") for call in client.calls), 6)
+            self.assertEqual(sum(call[:2] == ("POST", "/databases") for call in client.calls), 3)
+            self.assertEqual(sum(call[:2] == ("POST", "/views") for call in client.calls), 7)
 
     def test_setup_lost_create_stops_instead_of_duplicate(self):
         with tempfile.TemporaryDirectory() as temporary:

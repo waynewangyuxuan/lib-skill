@@ -55,6 +55,15 @@ def parser():
     source.add_argument("reference")
     source.add_argument("--mode", choices=("cache", "if-stale", "live", "historical"), default="cache")
     source.add_argument("--revision", type=int)
+    todo = commands.add_parser("todo-add")
+    todo.add_argument("text")
+    todo.add_argument("--event", required=True)
+    todo.add_argument("--revision", type=int, required=True)
+    todo.add_argument("--anchor", required=True)
+    todo.add_argument("--due")
+    todo.add_argument("--entity", dest="entity_ids", action="append", default=[])
+    todos = commands.add_parser("todo-list")
+    todos.add_argument("--status")
     log = commands.add_parser("worklog")
     log.add_argument("--run", dest="run_id")
     remote = commands.add_parser("publish")
@@ -123,6 +132,12 @@ def run(args):
             from .github import source_open as github_source
             return github_source(args.vault, args.reference, mode=args.mode, revision=args.revision)
         return result
+    if name == "todo-add":
+        from .todo import add_todo
+        return add_todo(args.vault, args.text, args.event, args.revision, args.anchor, args.due, args.entity_ids)
+    if name == "todo-list":
+        from .todo import list_todos
+        return list_todos(args.vault, args.status)
     if name == "worklog":
         from .worklog import write_worklog
         return {"written": write_worklog(args.vault, args.run_id)}

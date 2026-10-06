@@ -218,7 +218,7 @@ class Library:
         relative = Path(relative)
         if relative.is_absolute() or ".." in relative.parts or not relative.parts:
             raise ValueError("Managed path must be relative and confined")
-        if relative.parts[0] not in {"_entities", "_events", "_sources", "_state", "_runs"}:
+        if relative.parts[0] not in {"_entities", "_events", "_sources", "_state", "_runs", "_todos"}:
             raise ValueError("Path is outside managed storage")
         current = self.vault
         for part in relative.parts:
@@ -753,7 +753,7 @@ class Library:
             if self.status()["incomplete_runs"]:
                 raise ValueError("Recover unfinished apply before backup")
             files = {}
-            for folder in ("_entities", "_events", "_sources", "_state", "_runs"):
+            for folder in ("_entities", "_events", "_sources", "_state", "_runs", "_todos"):
                 root = self._path(folder)
                 if not root.exists():
                     continue

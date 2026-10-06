@@ -5,7 +5,7 @@ description: >
   typed Relations from frozen Events or sources. Use for entity extraction,
   entity updates, source checks, and on-demand migration.
 metadata:
-  runtime: mylibrary-tools>=3.6.0
+  runtime: mylibrary-tools>=3.7.0
 ---
 
 # Resolve and update Entities

@@ -18,6 +18,7 @@ _runs/<run_id>/frozen.json
 _runs/<run_id>/apply/{journal.json,files/<number>}
 _runs/<run_id>/outcomes/<consumer>/<event_id>/<revision>.json
 _runs/<run_id>/receipt.json
+_todos/<todo_id>.json
 _index/
 ```
 
@@ -91,6 +92,10 @@ A completed run receipt follows all required outputs and outcome receipts. Only 
 
 `mylibrary recover <run_id>` compares current files with before and desired hashes. Desired matches are already applied. Before matches can receive staged bytes. Any third hash stops recovery for human-edit reconciliation. Recovery does not roll back human corrections.
 
+## TODOs
+
+A TODO record has `id`, `text`, `status`, `due`, `when`, `entity_ids`, `source` (`event_id`, `revision`, `anchor`, `url`, or null for a row Wayne added), `origin` (`settle` or `notion`), `notion_page_id`, `created_day`, and `removed`. An extracted TODO's ID hashes its Event ID and normalized text. After its Notion row exists, Wayne owns every field; collect mirrors the row and marks a vanished row `removed`.
+
 ## Publication
 
 Publication has separate mapping and attempt records. Each local Entity ID maps to one fixed Notion page. Compare the remote page with the last verified publication before updating. Human edits block replacement until reconciled. Read back properties and body before recording success.
@@ -117,6 +122,8 @@ mylibrary neighbors <id> [--predicate <type>] [--direction incoming|outgoing|bot
 mylibrary source-open <ref> --mode cache|if-stale|live|historical [--revision <revision>]
 mylibrary publish [--entity <id>]
 mylibrary worklog [--run <run_id>]
+mylibrary todo-add <text> --event <id> --revision <n> --anchor <anchor> [--due <YYYY-MM-DD>] [--entity <id>]
+mylibrary todo-list [--status 待办|完成|放弃]
 mylibrary setup --main <existing-MyLibrary-page-id-or-URL> [--dry-run]
 mylibrary setup --parent <parent-id-or-URL> [--dry-run]
 mylibrary backup --output <path>

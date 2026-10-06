@@ -5,7 +5,7 @@ description: >
   publication state for a day or week. Use for "review today", "review week",
   "lib-review eod", or "lib-review eow".
 metadata:
-  runtime: mylibrary-tools>=3.6.0
+  runtime: mylibrary-tools>=3.7.0
 ---
 
 # Review receipts and unresolved work
@@ -18,7 +18,7 @@ Use completed receipts and original evidence to explain what changed. Daily logs
 2. If the request includes settling, run `lib-settle` on pending Event revisions. Otherwise inspect current receipts without mutating Entities.
 3. Read the selected day's completed runs and unresolved Events. Use the 04:00 boundary for historical dates. Retrieve touched Entity descriptions before opening bodies.
 4. Compare original sources with supported Context. List decisions, open work, necessary skips, `blocked`, `needs_review`, empty inputs, and source access gaps.
-5. Report publication state separately. A local apply can succeed while its Notion view remains unpublished or blocked by a human edit.
+5. Run `mylibrary todo-list --status 待办`. List TODOs created that day, overdue ones (due before today), ones due within three days, and the open count. Report publication state separately. A local apply can succeed while its Notion view remains unpublished or blocked by a human edit.
 6. Write the authorized review to `_reviews/review-<M>-<D>.md` for the logical day, linking that day's work log. Do not rewrite historical work logs or consume pending Events merely to produce a report.
 
 ## Weekly review

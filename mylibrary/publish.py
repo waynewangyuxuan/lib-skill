@@ -307,6 +307,9 @@ def publish(vault, entity_ids=None, client=None):
         except (ValueError, NotionError, BlockingIOError) as error:
             results.append({"path": str(path.relative_to(vault)), "status": "blocked", "reason": str(error)})
     report = {"checked_at": timestamp(), "results": results}
+    if "todos" in setup["resources"]:
+        from .todo import publish_todos
+        report["todos"] = publish_todos(vault, client, setup)
     with writer_lock(vault, wait_seconds=30):
         atomic_json(Library(vault)._path("_state/notion/last-publish.json"), report)
     return report

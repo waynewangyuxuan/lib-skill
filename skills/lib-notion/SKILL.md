@@ -5,7 +5,7 @@ description: >
   inputs, retain source evidence, and publish Entity views. Use for Notion
   setup, collection, watch-area scope, source reads, or publication recovery.
 metadata:
-  runtime: mylibrary-tools>=3.6.0
+  runtime: mylibrary-tools>=3.7.0
 ---
 
 # Collect Notion inputs and publish Entity views
@@ -20,6 +20,10 @@ The Notion Events database and the watch area are the configured inputs. Local E
 4. Run `mylibrary collect`. Inspect retained source URLs, IDs, snapshots, attachment bytes, and coverage gaps before reporting readiness.
 
 `NOTION_API_KEY` or `NOTION_PAT` may come from a secure environment. Never expose a token in chat, command arguments, source files, or receipts. A stored token does not prove workspace access or a working mobile recording route.
+
+## TODO list
+
+The TODO database on the Main page belongs to Wayne. `lib-settle` proposes rows with `mylibrary todo-add`, and `mylibrary publish` creates each row once. After that, Name, Status (待办 / 完成 / 放弃), Due and When are Wayne's: `mylibrary collect` mirrors them, and rows he adds by hand, into `_todos/`. Nothing overwrites them. When is the planned time Wayne drags in Notion Calendar after adding this database there; Due is the deadline.
 
 ## Process and publish
 

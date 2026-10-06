@@ -26,6 +26,9 @@ def page_url(identifier):
     return "https://www.notion.so/" + notion_id(identifier).replace("-", "")
 
 
+TODO_STATUSES = ("待办", "完成", "放弃")
+
+
 def config(vault):
     result = read_json(Library(vault)._path(SETUP))
     if result.get("schema_version") != 1:
@@ -369,10 +372,16 @@ def collect(vault, client=None):
             except (NotionError, ValueError) as error:
                 failures.append({"page_id": identifier, "status": "unreachable_or_moved", "reason": str(error)})
     inputs = {notion_id(item["data_source_id"]) for key, item in setup["resources"].items()
-              if key in {"events", "entities"}}
+              if key in {"events", "entities", "todos"}}
     skip = seen | machine_pages | {notion_id(setup["resources"][key]["page_id"])
                                    for key in ("main", "entities_page") if key in setup["resources"]}
     watch, watched = collect_watch(client, library, setup, skip) if "watch" in setup else (None, set())
+    if "todos" in setup["resources"]:
+        from .todo import collect_todos
+        try:
+            todos = collect_todos(vault, client, setup)
+        except NotionError as error:
+            todos = {"status": "unreachable", "reason": str(error)}
     references = [snapshot_reference(client, library, setup["workspace_id"], target, sorted(events), inputs)
                   for target, events in sorted(cited.items()) if target not in skip | watched]
     state_path = library._path("_state/notion/acquisition.json")
@@ -381,7 +390,8 @@ def collect(vault, client=None):
         previously_seen = set(previous.get("known_page_ids", []))
         report = {"schema_version": 1, "checked_at": timestamp(), "observations": observations,
                   "failures": failures, "not_observed": sorted(previously_seen - seen),
-                  "known_page_ids": sorted(previously_seen | seen), "references": references, "watch": watch}
+                  "known_page_ids": sorted(previously_seen | seen), "references": references, "watch": watch,
+                  "todos": todos if "todos" in setup["resources"] else None}
         atomic_json(state_path, report)
     report["pending"] = library.pending()
     return report
@@ -579,9 +589,16 @@ def _setup(vault, plan, client=None):
                             "Event Count": {"type": "number", "number": {}}, "Last Event": {"type": "date", "date": {}},
                             "Tags": {"type": "multi_select", "multi_select": {}}, "State": {"type": "select", "select": {}},
                             "Days Idle": {"type": "formula", "formula": {"expression": 'dateBetween(now(), prop("Last Event"), "days")'}}}}
-    for name, schema in schemas.items():
+    for name in ("events", "entities", "todos"):
+        schema = schemas.get(name) or {
+            "Name": basics["Name"], "Status": {"type": "select", "select": {"options": [{"name": status} for status in TODO_STATUSES]}},
+            "Due": {"type": "date", "date": {}}, "When": {"type": "date", "date": {}},
+            "Entities": {"type": "relation", "relation": {"data_source_id": state["resources"]["entities"]["data_source_id"],
+                                                          "type": "single_property", "single_property": {}}},
+            "Source": {"type": "url", "url": {}}, "Todo ID": {"type": "rich_text", "rich_text": {}}, "Created": basics["Created"]}
         database = create(name, "/databases", {"parent": {"type": "page_id", "page_id": main_id},
-                         "title": [rich(name.title())], "is_inline": False, "initial_data_source": {"properties": schema}})
+                         "title": [rich({"todos": "TODO"}.get(name, name.title()))], "is_inline": False,
+                         "initial_data_source": {"properties": schema}})
         data_sources = database.get("data_sources", [])
         if len(data_sources) != 1:
             raise NotionError("New database did not return one data source")
@@ -601,15 +618,19 @@ def _setup(vault, plan, client=None):
             state["resources"]["main"] = {"page_id": main_id, "url": main.get("url", page_url(main_id))}
             state["resources"]["entities_page"] = {"page_id": entities_page["id"], "url": entities_page.get("url", page_url(entities_page["id"]))}
             atomic_json(path, state)
-    for name, view_name in (("events", "Recent Events"), ("entities", "Entities")):
+    for name, view_name in (("events", "Recent Events"), ("entities", "Entities"), ("todos", "TODO")):
         resource = state["resources"][name]
-        visible = {"Name", "Created"} if name == "events" else {"Name", "Description", "Type"}
+        visible = {"events": {"Name", "Created"}, "entities": {"Name", "Description", "Type"},
+                   "todos": {"Name", "When", "Due", "Entities"}}[name]
         payload = {"data_source_id": resource["data_source_id"], "name": view_name, "type": "list",
                    "create_database": {"parent": {"type": "page_id", "page_id": entities_page["id"] if name == "entities" else main_id}},
                    "configuration": {"type": "list", "properties": [{"property_id": pid, "visible": label in visible}
                                                 for label, pid in resource["properties"].items()]}}
         if name == "events":
             payload["sorts"] = [{"property": resource["properties"]["Created"], "direction": "descending"}]
+        if name == "todos":
+            payload["filter"] = {"property": "Status", "select": {"equals": "待办"}}
+            payload["sorts"] = [{"property": resource["properties"][label], "direction": "ascending"} for label in ("When", "Due")]
         view = create("view_" + name, "/views", payload)
         with writer_lock(vault, wait_seconds=30):
             state.update(read_json(path))

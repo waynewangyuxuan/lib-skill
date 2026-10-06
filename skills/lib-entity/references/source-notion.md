@@ -10,6 +10,7 @@ Load this when an Event, reference, or question involves Notion. It says what th
 | Watched workspace pages and database rows | Wayne's own notes outside Events (`authorship: wayne`). The first pass is a non-pending baseline; each later edit is a pending `source_update` revision. | `_events/<event_id>/revisions/<n>/` with `input_kind: source_update`, structure in `_state/notion/watch.json` |
 | Pages an Event mentions or links, outside the watch area | Reference material, not input. Never pending, never a user decision. | `_sources/<source_id>/` with `role: reference` in `source.json` |
 | Entities database (`ENT <name>` pages) | Machine-published views of local Entities. Output only. | The local `_entities/*.md` file is the authority |
+| TODO database | Wayne's task list. Rows are proposed by settle or added by hand, then edited only by Wayne. | `_todos/<todo_id>.json`, mirrored on every collect |
 | Main page and the Entities page | Layout. | Never collected |
 
 The watch area is every workspace root page and root database except the IDs in `watch.exclude` of `_state/notion/setup.json` (currently 日子 and 历史存档) and the MyLibrary page. Search only lists those roots. Everything below them is found by following child pages and database rows, and a page is reread only when its `last_edited_time` changes. Database templates are not returned by queries and are not watched.

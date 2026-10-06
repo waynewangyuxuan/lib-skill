@@ -5,10 +5,10 @@ description: >
   compatibility, and recovery. Use for "lib-manual", "vault manual",
   "how does the vault work", or a specific subsystem question.
 metadata:
-  runtime: mylibrary-tools>=3.6.0
+  runtime: mylibrary-tools>=3.7.0
 ---
 
-# Explain MyLibrary 3.6
+# Explain MyLibrary 3.7
 
 Give a bounded, read-only explanation for the requested topic. Start with the relevant shared reference, then inspect actual status or selected local files. Do not load the whole vault to answer one question.
 
@@ -22,7 +22,7 @@ Give a bounded, read-only explanation for the requested topic. Start with the re
 
 The common route is capture or collect, freeze, compare Entity descriptions, load the needed source pack, stage, validate, apply, index, and publish. `mylibrary status` identifies pending or incomplete work. Recovery and publication have separate retries.
 
-Local files preserve Events, source snapshots, attachment bytes, Entity memory, mappings, and receipts. Notion provides the Events input, a watched workspace area whose edits become source updates, local copies of pages that Events reference, and fixed Entity output pages. A launchd job runs at 04:00 for the previous logical day: collect, settle, publish, `mylibrary worklog`, then the review. Each settle writes a receipt section into that day's file in `工作记录/`. Daily work logs remain readable history. The existing Entity pages, bodies, and type vocabulary remain compatible. A legacy Entity gains a stable ID and description when a settle first writes it. Untouched Entities stay as they are.
+Local files preserve Events, source snapshots, attachment bytes, Entity memory, mappings, and receipts. Notion provides the Events input, a watched workspace area whose edits become source updates, local copies of pages that Events reference, and fixed Entity output pages. A launchd job runs at 04:00 for the previous logical day: collect, settle, publish, `mylibrary worklog`, then the review. Each settle writes a receipt section into that day's file in `工作记录/` and proposes TODOs, which live in a Notion database Wayne edits and drags in Notion Calendar, mirrored into `_todos/`. Daily work logs remain readable history. The existing Entity pages, bodies, and type vocabulary remain compatible. A legacy Entity gains a stable ID and description when a settle first writes it. Untouched Entities stay as they are.
 
 Each Skill's `metadata.runtime` names the minimum `mylibrary-tools` version it needs. Before collecting or writing, run `mylibrary --version`. If the command is missing, ask Wayne to run `uv tool install git+https://github.com/waynewangyuxuan/lib-skill`. If it is older than required, ask for `uv tool upgrade mylibrary-tools`. Skills update separately with `npx skills update`. A development checkout uses `bash install.sh` instead.
 
