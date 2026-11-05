@@ -66,6 +66,9 @@ def parser():
     todos.add_argument("--status")
     log = commands.add_parser("worklog")
     log.add_argument("--run", dest="run_id")
+    daily = commands.add_parser("daily")
+    daily.add_argument("--day", required=True)
+    daily.add_argument("--from", dest="source", type=Path, required=True)
     remote = commands.add_parser("publish")
     remote.add_argument("--entity", action="append", dest="entities")
     provisioning = commands.add_parser("setup", aliases=["notion-setup"])
@@ -141,6 +144,9 @@ def run(args):
     if name == "worklog":
         from .worklog import write_worklog
         return {"written": write_worklog(args.vault, args.run_id)}
+    if name == "daily":
+        from .worklog import write_daily
+        return {"written": write_daily(args.vault, args.day, args.source.read_text(encoding="utf-8"))}
     if name == "publish":
         return publish(args.vault, args.entities)
     if name in {"setup", "notion-setup"}:

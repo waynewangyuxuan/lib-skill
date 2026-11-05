@@ -190,13 +190,48 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(write_worklog(self.vault, run), ["工作记录/September/2026-9-3.md"])
         text = day_file.read_text()
         self.assertTrue(text.startswith("---\ndate: 2026-09-03\n---\nMy own notes.\n\n## Settle Log #ai-generated\n→ legacy line\n"))
-        self.assertIn("- Idea · 整合进 [[alpha]] · Added the alpha idea", text)
-        self.assertIn("- Waiting · 未沉淀", text)
+        self.assertIn("**沉淀**\n- [[alpha]]\n  - Added the alpha idea ← Idea\n", text)
+        self.assertIn("**未处理** 1 条：Waiting\n", text)
         self.assertNotIn("Scratch", text)
         self.assertEqual(write_worklog(self.vault, run), ["工作记录/September/2026-9-3.md"])
         self.assertEqual(day_file.read_text(), text)
         write_worklog(self.vault)
-        self.assertIn("- Scratch · 只记录 · nothing to add", (self.vault / "工作记录/September/2026-9-4.md").read_text())
+        self.assertIn("**只记录** 1 条：Scratch — nothing to add\n", (self.vault / "工作记录/September/2026-9-4.md").read_text())
+
+    def test_worklog_names_blocked_attempts_and_groups_by_entity(self):
+        from mylibrary.worklog import write_worklog
+        stuck = self.record("stuck", body="Private", name="日子", occurred_at="2026-09-05")
+        path, _ = self.stage([stuck], outcome="blocked", reason="excluded page was collected")
+        self.library.apply(path)
+        first = self.record("a", body="Alpha one", name="2026-09-05T09:10:00.000-07:00", occurred_at="2026-09-05T09:10:00-07:00")
+        second = self.record("b", body="Alpha two", name="2026-09-05T11:20:00.000-07:00", occurred_at="2026-09-05T11:20:00-07:00")
+        path, stage = self.stage([first, second], [("_entities/alpha.md", entity("Alpha", "ent_alpha", extra="Two.\n"))])
+        stage["outcomes"][0]["summary"] = "morning thought"
+        stage["outcomes"][1]["summary"] = "later thought"
+        atomic_json(path, stage)
+        self.library.apply(path)
+        write_worklog(self.vault)
+        text = (self.vault / "工作记录/September/2026-9-5.md").read_text()
+        self.assertIn("- [[alpha]]\n  - morning thought ← 09:10 的记录\n  - later thought ← 11:20 的记录\n", text)
+        self.assertIn("**卡住** 1 条：日子 — excluded page was collected\n", text)
+
+    def test_daily_summary_sits_above_the_settle_log_and_keeps_notes(self):
+        from mylibrary.worklog import write_daily, write_worklog
+        self.record("one", body="Alpha idea", name="Idea", occurred_at="2026-09-06")
+        write_worklog(self.vault)
+        day_file = self.vault / "工作记录/September/2026-9-6.md"
+        day_file.write_text(day_file.read_text().replace("---\n\n## Settle", "---\n\nMy notes.\n\n## Settle"))
+        self.assertEqual(write_daily(self.vault, "2026-09-06", "## 今日 #ai-generated\n\nA quiet day.\n"),
+                         "工作记录/September/2026-9-6.md")
+        text = day_file.read_text()
+        self.assertIn("My notes.\n\n## 今日 #ai-generated\n\nA quiet day.\n\n## Settle Log", text)
+        write_daily(self.vault, "2026-09-06", "Rewritten.")
+        text = day_file.read_text()
+        self.assertIn("My notes.\n\n## 今日 #ai-generated\n\nRewritten.\n\n## Settle Log", text)
+        self.assertNotIn("A quiet day", text)
+        self.assertEqual(write_daily(self.vault, "2026-09-07", "New day."), "工作记录/September/2026-9-7.md")
+        with self.assertRaises(ValueError):
+            write_daily(self.vault, "2026-09-07", "## 今日 #ai-generated\n")
 
     def test_historical_capture_keeps_its_logical_day(self):
         from mylibrary.worklog import write_worklog
@@ -205,7 +240,7 @@ class StorageTests(unittest.TestCase):
         event = self.library.capture(note, resource_id="worklog:2026-9-29", name="Old notes", occurred_at="2026-09-29")
         self.assertEqual(event["occurred_at"], "2026-09-29")
         write_worklog(self.vault)
-        self.assertIn("- Old notes · 未沉淀", (self.vault / "工作记录/September/2026-9-29.md").read_text())
+        self.assertIn("**未处理** 1 条：Old notes\n", (self.vault / "工作记录/September/2026-9-29.md").read_text())
 
     def test_activity_dates_a_source_update_by_its_edit(self):
         raw = {"page": {"created_time": "2026-09-26T18:00:00.000Z", "last_edited_time": "2026-09-30T18:00:00.000Z"}}
@@ -231,9 +266,10 @@ class StorageTests(unittest.TestCase):
         from mylibrary.worklog import write_worklog
         self.record("late", body="Late note", name="A late note", occurred_at="2026-09-29T23:00:00-07:00")
         self.record("early", body="Early note", name="Z early note", occurred_at="2026-09-29T09:00:00-07:00")
+        self.record("mid", body="Mid note", name="M mid note", occurred_at="2026-09-29T12:00:00-07:00")
         write_worklog(self.vault)
         text = (self.vault / "工作记录/September/2026-9-29.md").read_text()
-        self.assertLess(text.index("Z early note"), text.index("A late note"))
+        self.assertIn("**未处理** 3 条：Z early note、M mid note、A late note\n", text)
 
     def test_interrupted_multifile_recovery_and_independent_publication(self):
         event = self.record()
