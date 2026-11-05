@@ -9,6 +9,8 @@
 #   author filter  a shared repo (e.g. Helm: 353/353 commits by a collaborator) otherwise
 #                  floods the scan with work that is not yours.
 #   worktree dedup handled upstream in discover-repos.sh.
+#   --invert-grep   the vault's own background commits (auto:, auto-snapshot:, heartbeat:) are
+#                  backup bookkeeping, not work.
 
 set -uo pipefail
 DAY="${1:?usage: scan-day.sh YYYY-MM-DD [vault_root]}"
@@ -23,7 +25,7 @@ AUTHORS="${LIB_SETTLE_AUTHORS:-$(git -C "$VAULT" config user.email 2>/dev/null)|
 "$HERE/discover-repos.sh" "$VAULT" | while read -r repo; do
   [ -n "$repo" ] || continue
   mine=$(git -C "$repo" log --all --regexp-ignore-case --perl-regexp \
-           --author="$AUTHORS" \
+           --author="$AUTHORS" --invert-grep --grep='^(auto|auto-snapshot|auto-bulk|auto-squash|heartbeat)[:(]' \
            --since="$DAY 04:00" --until="$NEXT 04:00" \
            --format="   %h %ad %an  %s" --date=format:"%H:%M" --reverse 2>/dev/null)
   others=$(git -C "$repo" log --all --since="$DAY 04:00" --until="$NEXT 04:00" --oneline 2>/dev/null | wc -l | tr -d ' ')
